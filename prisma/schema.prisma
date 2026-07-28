@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  passwordHash String
+}
+
+model Lead {
+  id         String   @id @default(cuid())
+  name       String
+  company    String
+  email      String
+  message    String
+  source     String
+  receivedAt DateTime @default(now())
+  status     String   @default("new") // new | in_pipeline
+  createdAt  DateTime @default(now())
+}
+
+// Stand-in for an inbound Google Sheet / webhook queue that "Sync now" drains.
+model QueuedLead {
+  id        String   @id @default(cuid())
+  name      String
+  company   String
+  email     String
+  message   String
+  source    String
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model Contact {
+  id         String     @id @default(cuid())
+  name       String
+  company    String
+  email      String
+  phone      String
+  title      String
+  activities Activity[]
+  createdAt  DateTime   @default(now())
+}
+
+model Deal {
+  id          String     @id @default(cuid())
+  title       String
+  company     String
+  contactName String
+  value       Float      @default(0)
+  stage       String     @default("Lead") // Lead | Qualified | Proposal | Negotiation | Won | Lost
+  closeDate   DateTime?
+  notes       String     @default("")
+  tasks       Task[]
+  activities  Activity[]
+  invoices    Invoice[]
+  projects    Project[]
+  createdAt   DateTime   @default(now())
+}
+
+model Task {
+  id     String  @id @default(cuid())
+  dealId String
+  deal   Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  text   String
+  done   Boolean @default(false)
+  order  Int     @default(0)
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  dealId    String?
+  deal      Deal?    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  ts        DateTime @default(now())
+  text      String
+}
+
+model Project {
+  id        String    @id @default(cuid())
+  name      String
+  client    String
+  status    String    @default("Not started") // Not started | In progress | Blocked | Complete
+  progress  Int       @default(0)
+  dueDate   DateTime?
+  dealId    String?
+  deal      Deal?     @relation(fields: [dealId], references: [id])
+  subtasks  Subtask[]
+  createdAt DateTime  @default(now())
+}
+
+model Subtask {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  text      String
+  done      Boolean   @default(false)
+  dueDate   DateTime?
+  order     Int       @default(0)
+}
+
+model Invoice {
+  id        String    @id @default(cuid())
+  client    String
+  dealId    String?
+  deal      Deal?     @relation(fields: [dealId], references: [id])
+  amount    Float     @default(0)
+  status    String    @default("Draft") // Draft | Sent | Paid | Overdue
+  issuedAt  DateTime  @default(now())
+  dueDate   DateTime?
+  createdAt DateTime  @default(now())
+}

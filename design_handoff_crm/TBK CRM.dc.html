@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+<link rel="stylesheet" href="./ds/styles.css">
+<script src="./ds/print-plates.js"></script>
+<style>
+  body { margin: 0; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--color-neutral-300); border-radius: var(--radius-md); }
+</style>
+</helmet>
+
+<div style="min-height:100vh;display:flex;flex-direction:column;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);">
+
+  <div class="nav">
+    <div class="nav-brand">TBK Enterprise Consulting</div>
+    <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="7">
+      <a href="#" aria-current="{{ item.current }}" onClick="{{ item.onClick }}">{{ item.label }}</a>
+    </sc-for>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;padding:var(--space-8) var(--space-6);">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:var(--space-6);">
+      <div>
+        <h1 style="margin:0;">{{ headerTitle }}</h1>
+        <p class="text-muted" style="margin:var(--space-1) 0 0;">{{ headerSubtitle }}</p>
+      </div>
+      <sc-if value="{{ showHeaderAction }}" hint-placeholder-val="{{ false }}">
+        <button class="btn btn-primary" onClick="{{ headerActionFn }}">{{ headerActionLabel }}</button>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:var(--space-8);flex-wrap:wrap;margin-bottom:var(--space-8);">
+        <sc-for list="{{ statCards }}" as="card" hint-placeholder-count="4">
+          <div>
+            <div class="text-muted" style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;">{{ card.label }}</div>
+            <h2 style="margin:var(--space-1) 0 0;">{{ card.value }}</h2>
+            <div class="text-muted" style="font-size:12px;">{{ card.hint }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:var(--space-8);">
+        <div>
+          <h4>Recent leads</h4>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-3);">
+            <sc-for list="{{ recentLeads }}" as="lead" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                  <div style="font-weight:600;">{{ lead.name }}</div>
+                  <div class="text-muted" style="font-size:13px;">{{ lead.company }}</div>
+                </div>
+                <div class="{{ lead.tagClass }}">{{ lead.statusLabel }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div>
+          <h4>Top open deals</h4>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-3);">
+            <sc-for list="{{ topDeals }}" as="deal" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onClick="{{ deal.onClick }}">
+                <div>
+                  <div style="font-weight:600;">{{ deal.title }}</div>
+                  <div class="text-muted" style="font-size:13px;">{{ deal.company }}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-weight:600;">{{ deal.valueLabel }}</div>
+                  <div class="text-muted" style="font-size:11px;">{{ deal.stage }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isLeads }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-4);">
+        <div class="tag tag-accent">Synced from Google Sheet</div>
+        <div class="text-muted" style="font-size:13px;">Last synced {{ lastSyncedLabel }}</div>
+        <div style="margin-left:auto;display:flex;gap:var(--space-2);">
+          <button class="btn btn-secondary" onClick="{{ openImportCsv }}">Import CSV</button>
+          <button class="btn btn-secondary" onClick="{{ syncNow }}">Sync now</button>
+        </div>
+      </div>
+      <table class="table">
+        <thead><tr><th>Name</th><th>Company</th><th>Inquiry</th><th>Source</th><th>Received</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <sc-for list="{{ leadsView }}" as="lead" hint-placeholder-count="5">
+            <tr>
+              <td style="font-weight:600;">{{ lead.name }}</td>
+              <td>{{ lead.company }}</td>
+              <td class="text-muted" style="font-size:13px;">{{ lead.message }}</td>
+              <td class="text-muted" style="font-size:13px;">{{ lead.source }}</td>
+              <td class="text-muted" style="font-size:13px;">{{ lead.receivedLabel }}</td>
+              <td><div class="{{ lead.tagClass }}">{{ lead.statusLabel }}</div></td>
+              <td>
+                <sc-if value="{{ lead.canConvert }}" hint-placeholder-val="{{ false }}">
+                  <button class="btn btn-primary" onClick="{{ lead.onConvert }}">Convert to deal</button>
+                </sc-if>
+              </td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </sc-if>
+
+    <sc-if value="{{ isDeals }}" hint-placeholder-val="{{ false }}">
+      <p class="text-muted" style="margin-top:0;"><strong style="color:var(--color-text);">{{ dealsOpenCount }}</strong> open deals · <strong style="color:var(--color-text);">{{ dealsOpenValueLabel }}</strong> pipeline value</p>
+      <div style="display:flex;gap:var(--space-6);overflow-x:auto;padding-bottom:var(--space-3);">
+        <sc-for list="{{ dealColumns }}" as="col" hint-placeholder-count="6">
+          <div style="flex:0 0 260px;" onDragOver="{{ col.onDragOver }}" onDrop="{{ col.onDrop }}">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--space-3);">
+              <h5 style="margin:0;">{{ col.name }}</h5>
+              <div class="text-muted" style="font-size:11px;">{{ col.count }} · {{ col.valueLabel }}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:var(--space-3);">
+              <sc-for list="{{ col.deals }}" as="deal" hint-placeholder-count="2">
+                <div class="card elev-sm" draggable="true" style="cursor:grab;" onDragStart="{{ deal.onDragStart }}" onClick="{{ deal.onClick }}">
+                  <div class="card-title">{{ deal.title }}</div>
+                  <div class="card-meta">{{ deal.company }}</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-weight:600;">{{ deal.valueLabel }}</div>
+                    <div class="text-muted" style="font-size:11px;">{{ deal.closeLabel }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isProjects }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--space-4);">
+        <sc-for list="{{ projectsView }}" as="proj" hint-placeholder-count="2">
+          <div class="card elev-sm">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div class="card-title">{{ proj.name }}</div>
+                <div class="card-meta">{{ proj.client }}</div>
+              </div>
+              <div class="{{ proj.tagClass }}">{{ proj.status }}</div>
+            </div>
+            <div>
+              <div style="height:6px;background:var(--color-neutral-200);border-radius:var(--radius-md);overflow:hidden;">
+                <div style="{{ proj.barStyle }}"></div>
+              </div>
+              <div class="text-muted" style="display:flex;justify-content:space-between;font-size:11px;margin-top:var(--space-1);">
+                <div>{{ proj.subtasksLabel }}</div>
+                <div>Due {{ proj.dueLabel }}</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+              <sc-for list="{{ proj.subtasks }}" as="task" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;gap:var(--space-2);font-size:13px;">
+                  <input type="checkbox" checked="{{ task.done }}" onChange="{{ task.onToggle }}"></input>
+                  <div style="{{ task.textStyle }}">{{ task.text }}</div>
+                  <div class="text-muted" style="font-size:11px;">{{ task.dueLabel }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:var(--space-2);">
+              <input class="input" placeholder="Add a task" value="{{ proj.newSubtaskText }}" onChange="{{ proj.onNewSubtaskTextChange }}" style="flex:1;"></input>
+              <input class="input" type="date" value="{{ proj.newSubtaskDue }}" onChange="{{ proj.onNewSubtaskDueChange }}" style="width:130px;"></input>
+              <button class="btn btn-secondary" onClick="{{ proj.addSubtask }}">Add</button>
+            </div>
+            <select class="input" value="{{ proj.status }}" onChange="{{ proj.onStatusChange }}">
+              <option value="Not started">Not started</option>
+              <option value="In progress">In progress</option>
+              <option value="Blocked">Blocked</option>
+              <option value="Complete">Complete</option>
+            </select>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isContacts }}" hint-placeholder-val="{{ false }}">
+      <table class="table">
+        <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Title</th></tr></thead>
+        <tbody>
+          <sc-for list="{{ contacts }}" as="c" hint-placeholder-count="6">
+            <tr style="cursor:pointer;" onClick="{{ c.onClick }}">
+              <td style="font-weight:600;">{{ c.name }}</td>
+              <td>{{ c.company }}</td>
+              <td><a href="mailto:{{ c.email }}" onClick="{{ stopProp }}">{{ c.email }}</a></td>
+              <td class="text-muted">{{ c.phone }}</td>
+              <td class="text-muted">{{ c.title }}</td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </sc-if>
+
+    <sc-if value="{{ isInvoices }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;gap:var(--space-8);flex-wrap:wrap;margin-bottom:var(--space-6);">
+        <sc-for list="{{ invoiceStats }}" as="card" hint-placeholder-count="3">
+          <div>
+            <div class="text-muted" style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;">{{ card.label }}</div>
+            <h2 style="margin:var(--space-1) 0 0;">{{ card.value }}</h2>
+            <div class="text-muted" style="font-size:12px;">{{ card.hint }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <table class="table">
+        <thead><tr><th>Client</th><th>Linked deal</th><th>Amount</th><th>Issued</th><th>Due</th><th>Status</th></tr></thead>
+        <tbody>
+          <sc-for list="{{ invoicesView }}" as="inv" hint-placeholder-count="3">
+            <tr>
+              <td style="font-weight:600;">{{ inv.client }}</td>
+              <td class="text-muted" style="font-size:13px;">{{ inv.dealTitle }}</td>
+              <td style="font-weight:600;">{{ inv.amountLabel }}</td>
+              <td class="text-muted" style="font-size:13px;">{{ inv.issuedLabel }}</td>
+              <td class="text-muted" style="font-size:13px;">{{ inv.dueLabel }}</td>
+              <td>
+                <select class="input" value="{{ inv.status }}" onChange="{{ inv.onStatusChange }}">
+                  <option value="Draft">Draft</option>
+                  <option value="Sent">Sent</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Overdue">Overdue</option>
+                </select>
+              </td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </sc-if>
+
+    <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-8);">
+        <div>
+          <h4>Lead source performance</h4>
+          <table class="table" style="margin-top:var(--space-3);">
+            <thead><tr><th>Source</th><th>Leads</th><th>Converted</th><th>Rate</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ sourcePerf }}" as="row" hint-placeholder-count="3">
+                <tr>
+                  <td style="font-weight:600;">{{ row.source }}</td>
+                  <td>{{ row.count }}</td>
+                  <td>{{ row.converted }}</td>
+                  <td class="text-muted">{{ row.rateLabel }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <h4>Monthly revenue (won deals)</h4>
+          <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-top:var(--space-3);">
+            <sc-for list="{{ monthlyRevenue }}" as="m" hint-placeholder-count="3">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:var(--space-1);">
+                  <div>{{ m.label }}</div>
+                  <div style="font-weight:600;">{{ m.valueLabel }}</div>
+                </div>
+                <div style="height:6px;background:var(--color-neutral-200);border-radius:var(--radius-md);overflow:hidden;">
+                  <div style="{{ m.barStyle }}"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{ selectedDeal }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" onClick="{{ closeDrawer }}">
+      <div class="dialog" style="width:min(520px,100%);" onClick="{{ stopProp }}">
+        <div class="dialog-title">{{ selectedDeal.title }}</div>
+        <div class="text-muted" style="font-size:13px;margin-top:calc(var(--space-1) * -1);">{{ selectedDeal.company }} · {{ selectedDeal.contactName }}</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="field">
+            <label>Value</label>
+            <input class="input" type="number" value="{{ selectedDeal.value }}" onChange="{{ onDealValueChange }}"></input>
+          </div>
+          <div class="field">
+            <label>Close date</label>
+            <input class="input" type="date" value="{{ selectedDeal.closeDate }}" onChange="{{ onDealCloseDateChange }}"></input>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Stage</label>
+          <select class="input" value="{{ selectedDeal.stage }}" onChange="{{ onDealStageChange }}">
+            <option value="Lead">Lead</option>
+            <option value="Qualified">Qualified</option>
+            <option value="Proposal">Proposal</option>
+            <option value="Negotiation">Negotiation</option>
+            <option value="Won">Won</option>
+            <option value="Lost">Lost</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Notes</label>
+          <textarea class="input" value="{{ selectedDeal.notes }}" onChange="{{ onDealNotesChange }}" rows="3"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Activity</label>
+          <div style="display:flex;flex-direction:column;gap:var(--space-2);max-height:160px;overflow-y:auto;">
+            <sc-for list="{{ selectedDeal.activity }}" as="a" hint-placeholder-count="2">
+              <div style="font-size:13px;">
+                <div class="text-muted" style="font-size:11px;">{{ a.tsLabel }}</div>
+                <div>{{ a.text }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
+            <input class="input" placeholder="Add a note" value="{{ newNoteText }}" onChange="{{ onNewNoteTextChange }}"></input>
+            <button class="btn btn-secondary" onClick="{{ addDealNote }}">Add</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Tasks</label>
+          <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+            <sc-for list="{{ selectedDeal.tasks }}" as="task" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:var(--space-2);font-size:14px;">
+                <input type="checkbox" checked="{{ task.done }}" onChange="{{ task.onToggle }}"></input>
+                <div style="{{ task.textStyle }}">{{ task.text }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
+            <input class="input" placeholder="Add a follow-up task" value="{{ newTaskText }}" onChange="{{ onNewTaskTextChange }}"></input>
+            <button class="btn btn-secondary" onClick="{{ addTask }}">Add</button>
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" onClick="{{ closeDrawer }}">Close</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ selectedContact }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" onClick="{{ closeContactDrawer }}">
+      <div class="dialog" style="width:min(480px,100%);" onClick="{{ stopProp }}">
+        <div class="dialog-title">{{ selectedContact.name }}</div>
+        <div class="text-muted" style="font-size:13px;margin-top:calc(var(--space-1) * -1);">{{ selectedContact.title }} · {{ selectedContact.company }}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          <div class="field"><label>Email</label><div>{{ selectedContact.email }}</div></div>
+          <div class="field"><label>Phone</label><div>{{ selectedContact.phone }}</div></div>
+        </div>
+        <div class="field">
+          <label>Activity</label>
+          <div style="display:flex;flex-direction:column;gap:var(--space-2);max-height:220px;overflow-y:auto;">
+            <sc-for list="{{ selectedContact.activity }}" as="a" hint-placeholder-count="2">
+              <div style="font-size:13px;">
+                <div class="text-muted" style="font-size:11px;">{{ a.tsLabel }}</div>
+                <div>{{ a.text }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);">
+            <input class="input" placeholder="Add a note" value="{{ newNoteText }}" onChange="{{ onNewNoteTextChange }}"></input>
+            <button class="btn btn-secondary" onClick="{{ addContactNote }}">Add</button>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" onClick="{{ closeContactDrawer }}">Close</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ modal }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop" onClick="{{ closeModal }}">
+      <div class="dialog" onClick="{{ stopProp }}">
+        <div class="dialog-title">{{ modalTitle }}</div>
+
+        <sc-if value="{{ isLeadModal }}" hint-placeholder-val="{{ false }}">
+          <div class="field"><label>Contact name</label><input class="input" value="{{ formName }}" onChange="{{ onFormNameChange }}"></input></div>
+          <div class="field"><label>Company</label><input class="input" value="{{ formCompany }}" onChange="{{ onFormCompanyChange }}"></input></div>
+          <div class="field"><label>Email</label><input class="input" value="{{ formEmail }}" onChange="{{ onFormEmailChange }}"></input></div>
+          <div class="field"><label>What do they need?</label><textarea class="input" value="{{ formMessage }}" onChange="{{ onFormMessageChange }}" rows="3"></textarea></div>
+        </sc-if>
+
+        <sc-if value="{{ isDealModal }}" hint-placeholder-val="{{ false }}">
+          <div class="field"><label>Deal title</label><input class="input" value="{{ formTitle }}" onChange="{{ onFormTitleChange }}"></input></div>
+          <div class="field"><label>Company</label><input class="input" value="{{ formCompany }}" onChange="{{ onFormCompanyChange }}"></input></div>
+          <div class="field"><label>Contact name</label><input class="input" value="{{ formName }}" onChange="{{ onFormNameChange }}"></input></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="field"><label>Value ($)</label><input class="input" type="number" value="{{ formValue }}" onChange="{{ onFormValueChange }}"></input></div>
+            <div class="field"><label>Close date</label><input class="input" type="date" value="{{ formCloseDate }}" onChange="{{ onFormCloseDateChange }}"></input></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isContactModal }}" hint-placeholder-val="{{ false }}">
+          <div class="field"><label>Name</label><input class="input" value="{{ formName }}" onChange="{{ onFormNameChange }}"></input></div>
+          <div class="field"><label>Company</label><input class="input" value="{{ formCompany }}" onChange="{{ onFormCompanyChange }}"></input></div>
+          <div class="field"><label>Title</label><input class="input" value="{{ formTitle }}" onChange="{{ onFormTitleChange }}"></input></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="field"><label>Email</label><input class="input" value="{{ formEmail }}" onChange="{{ onFormEmailChange }}"></input></div>
+            <div class="field"><label>Phone</label><input class="input" value="{{ formPhone }}" onChange="{{ onFormPhoneChange }}"></input></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isInvoiceModal }}" hint-placeholder-val="{{ false }}">
+          <div class="field"><label>Client</label><input class="input" value="{{ formCompany }}" onChange="{{ onFormCompanyChange }}"></input></div>
+          <div class="field">
+            <label>Linked deal (optional)</label>
+            <select class="input" value="{{ formLinkedDeal }}" onChange="{{ onFormLinkedDealChange }}">
+              <option value="">None</option>
+              <sc-for list="{{ wonDealOptions }}" as="d" hint-placeholder-count="2">
+                <option value="{{ d.id }}">{{ d.title }}</option>
+              </sc-for>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+            <div class="field"><label>Amount ($)</label><input class="input" type="number" value="{{ formValue }}" onChange="{{ onFormValueChange }}"></input></div>
+            <div class="field"><label>Due date</label><input class="input" type="date" value="{{ formCloseDate }}" onChange="{{ onFormCloseDateChange }}"></input></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isCsvModal }}" hint-placeholder-val="{{ false }}">
+          <div class="text-muted" style="font-size:13px;margin-bottom:var(--space-2);">Paste rows as: name, company, email, message, source (one per line)</div>
+          <div class="field"><textarea class="input" value="{{ formCsvText }}" onChange="{{ onFormCsvTextChange }}" rows="8" placeholder="Jane Doe, Acme Co, jane@acme.com, Needs help with onboarding, Referral"></textarea></div>
+        </sc-if>
+
+        <sc-if value="{{ isProjectModal }}" hint-placeholder-val="{{ false }}">
+          <div class="field"><label>Project name</label><input class="input" value="{{ formTitle }}" onChange="{{ onFormTitleChange }}"></input></div>
+          <div class="field"><label>Client</label><input class="input" value="{{ formCompany }}" onChange="{{ onFormCompanyChange }}"></input></div>
+          <div class="field"><label>Due date</label><input class="input" type="date" value="{{ formCloseDate }}" onChange="{{ onFormCloseDateChange }}"></input></div>
+        </sc-if>
+
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" onClick="{{ closeModal }}">Cancel</button>
+          <button class="btn btn-primary" onClick="{{ submitModal }}">Save</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const NOW = new Date('2026-07-27T15:00:00');
+const STAGES = ['Lead', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'];
+
+function money(n) { return '$' + Number(n || 0).toLocaleString('en-US'); }
+function daysAgo(iso) {
+  const d = Math.round((NOW - new Date(iso)) / 86400000);
+  if (d <= 0) return 'today';
+  if (d === 1) return '1 day ago';
+  return d + ' days ago';
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+class Component extends DCLogic {
+  state = {
+    view: 'dashboard',
+    lastSynced: '2026-07-27T14:52:00',
+    incomingPool: [
+      { name: 'Grace Whitfield', company: 'Whitfield & Sons Roofing', email: 'grace@whitfieldroofing.com', message: 'Need a lead intake and dispatch process overhaul.', source: 'Website contact form' }
+    ],
+    contacts: [
+      { id: 'c1', name: 'Marcus Reyes', company: 'Reyes & Co Logistics', email: 'marcus@reyesco.com', phone: '(555) 201-3344', title: 'Operations Director', activity: [] },
+      { id: 'c2', name: 'Priya Nair', company: 'Northbridge Retail Group', email: 'priya.nair@northbridgeretail.com', phone: '(555) 208-9911', title: 'VP Finance', activity: [] },
+      { id: 'c3', name: 'Devon Cole', company: 'Cole Family Dental', email: 'devon@colefamilydental.com', phone: '(555) 330-7712', title: 'Owner', activity: [] },
+      { id: 'c4', name: 'Ethan Brookes', company: 'Brookes Manufacturing', email: 'ethan.brookes@brookesmfg.com', phone: '(555) 577-2201', title: 'COO', activity: [] },
+      { id: 'c5', name: 'Lena Vasquez', company: 'Vasquez Legal Partners', email: 'lena@vasquezlegal.com', phone: '(555) 618-4420', title: 'Managing Partner', activity: [] },
+      { id: 'c6', name: 'Amara Okafor', company: 'Okafor Wellness Studio', email: 'amara@okaforwellness.com', phone: '(555) 442-0098', title: 'Founder', activity: [] }
+    ],
+    leads: [
+      { id: 'l1', name: 'Marcus Reyes', company: 'Reyes & Co Logistics', email: 'marcus@reyesco.com', message: 'Need help streamlining dispatch ops and reporting.', source: 'Website contact form', receivedAt: '2026-07-25', status: 'new' },
+      { id: 'l3', name: 'Sana Ito', company: 'Ito & Partners Architecture', email: 'sana@itopartners.com', message: 'Interested in a process audit for our project pipeline.', source: 'Website contact form', receivedAt: '2026-07-26', status: 'new' },
+      { id: 'l5', name: 'Amara Okafor', company: 'Okafor Wellness Studio', email: 'amara@okaforwellness.com', message: 'Exploring ops support as we open a second location.', source: 'Website contact form', receivedAt: '2026-07-27', status: 'new' },
+      { id: 'l2', name: 'Priya Nair', company: 'Northbridge Retail Group', email: 'priya.nair@northbridgeretail.com', message: 'Looking for a revenue operations audit before Q3.', source: 'Website contact form', receivedAt: '2026-07-22', status: 'in_pipeline' },
+      { id: 'l4', name: 'Devon Cole', company: 'Cole Family Dental', email: 'devon@colefamilydental.com', message: 'Want to fix our scheduling and billing workflow.', source: 'Website contact form', receivedAt: '2026-07-21', status: 'in_pipeline' }
+    ],
+    deals: [
+      { id: 'd1', title: 'Revenue Ops Audit', company: 'Northbridge Retail Group', contactName: 'Priya Nair', value: 18000, stage: 'Proposal', closeDate: '2026-08-15', notes: '', tasks: [{ id: 't1', text: 'Send proposal deck', done: true }, { id: 't2', text: 'Schedule follow-up call', done: false }], activity: [{ id: 'a1', ts: '2026-07-24T10:00:00', text: 'Sent proposal deck to Priya' }, { id: 'a2', ts: '2026-07-20T09:00:00', text: 'Stage changed to Proposal' }] },
+      { id: 'd2', title: 'Scheduling & Billing Workflow', company: 'Cole Family Dental', contactName: 'Devon Cole', value: 9500, stage: 'Negotiation', closeDate: '2026-08-05', notes: '', tasks: [{ id: 't3', text: 'Confirm final scope', done: false }], activity: [{ id: 'a3', ts: '2026-07-22T14:00:00', text: 'Call with Devon — agreed on rough scope' }] },
+      { id: 'd3', title: 'Ops Efficiency Engagement', company: 'Brookes Manufacturing', contactName: 'Ethan Brookes', value: 32000, stage: 'Qualified', closeDate: '2026-09-01', notes: '', tasks: [], activity: [] },
+      { id: 'd4', title: 'Intake Process Redesign', company: 'Vasquez Legal Partners', contactName: 'Lena Vasquez', value: 14000, stage: 'Lead', closeDate: '2026-09-20', notes: '', tasks: [], activity: [] },
+      { id: 'd5', title: 'Ops Retainer Renewal', company: 'Reyes & Co Logistics', contactName: 'Marcus Reyes', value: 24000, stage: 'Won', closeDate: '2026-06-30', notes: 'Signed, kicking off retainer.', tasks: [], activity: [] },
+      { id: 'd6', title: 'Front Office Cleanup', company: 'Bright Path Dental Group', contactName: 'Not on file', value: 6000, stage: 'Lost', closeDate: '2026-06-10', notes: 'Went with an in-house hire instead.', tasks: [], activity: [] }
+    ],
+    projects: [
+      { id: 'p1', name: 'Ops Retainer — Reyes & Co', client: 'Reyes & Co Logistics', status: 'In progress', progress: 55, dueDate: '2026-12-31', subtasks: [
+        { id: 'st1', text: 'Weekly ops review call', done: true, dueDate: '2026-07-10' },
+        { id: 'st2', text: 'Deliver Q3 dispatch report', done: false, dueDate: '2026-08-01' },
+        { id: 'st3', text: 'Audit driver scheduling tool', done: false, dueDate: '2026-08-20' }
+      ] },
+      { id: 'p2', name: 'Phase 1 Rollout', client: 'Northbridge Retail Group', status: 'Complete', progress: 100, dueDate: '2026-05-15', subtasks: [
+        { id: 'st4', text: 'Train staff on new POS flow', done: true, dueDate: '2026-05-01' },
+        { id: 'st5', text: 'Handoff documentation', done: true, dueDate: '2026-05-10' }
+      ] }
+    ],
+    invoices: [
+      { id: 'inv1', client: 'Reyes & Co Logistics', dealId: 'd5', amount: 24000, status: 'Paid', issuedAt: '2026-07-01', dueDate: '2026-07-15' },
+      { id: 'inv2', client: 'Northbridge Retail Group', dealId: 'd1', amount: 9000, status: 'Sent', issuedAt: '2026-07-20', dueDate: '2026-08-10' },
+      { id: 'inv3', client: 'Cole Family Dental', dealId: 'd2', amount: 4750, status: 'Overdue', issuedAt: '2026-06-15', dueDate: '2026-06-30' }
+    ],
+    selectedDealId: null,
+    selectedContactId: null,
+    newTaskText: '',
+    newNoteText: '',
+    newSubtaskText: {},
+    newSubtaskDue: {},
+    modal: null,
+    formName: '', formCompany: '', formEmail: '', formPhone: '', formTitle: '', formMessage: '', formValue: '', formCloseDate: '', formLinkedDeal: '', formCsvText: ''
+  };
+
+  switchView = (id) => (e) => { e.preventDefault(); this.setState({ view: id }); };
+
+  syncNow = () => {
+    this.setState(s => {
+      const nowIso = NOW.toISOString();
+      if (s.incomingPool.length === 0) return { lastSynced: nowIso };
+      const [next, ...rest] = s.incomingPool;
+      const lead = { id: 'l' + Date.now(), name: next.name, company: next.company, email: next.email, message: next.message, source: next.source, receivedAt: '2026-07-27', status: 'new' };
+      return { leads: [lead, ...s.leads], incomingPool: rest, lastSynced: nowIso };
+    });
+  };
+
+  convertLead = (leadId) => {
+    const lead = this.state.leads.find(l => l.id === leadId);
+    if (!lead) return;
+    const deal = { id: 'd' + Date.now(), title: 'New Engagement', company: lead.company, contactName: lead.name, value: 0, stage: 'Lead', closeDate: '', notes: 'Converted from inbound lead: ' + lead.message, tasks: [], activity: [{ id: 'a' + Date.now(), ts: NOW.toISOString(), text: 'Converted from inbound lead' }] };
+    this.setState(s => ({
+      deals: [deal, ...s.deals],
+      leads: s.leads.map(l => l.id === leadId ? { ...l, status: 'in_pipeline' } : l),
+      view: 'deals'
+    }));
+  };
+
+  handleDragStart = (dealId) => (e) => { e.dataTransfer.setData('text/plain', dealId); };
+  handleDrop = (stage) => (e) => {
+    e.preventDefault();
+    const dealId = e.dataTransfer.getData('text/plain');
+    this.setState(s => ({ deals: s.deals.map(d => d.id === dealId ? { ...d, stage, activity: [{ id: 'a' + Date.now(), ts: NOW.toISOString(), text: 'Stage changed to ' + stage }, ...(d.activity || [])] } : d) }));
+  };
+
+  selectDeal = (id) => this.setState({ selectedDealId: id, newTaskText: '', newNoteText: '' });
+  closeDrawer = () => this.setState({ selectedDealId: null });
+  selectContact = (id) => this.setState({ selectedContactId: id, newNoteText: '' });
+  closeContactDrawer = () => this.setState({ selectedContactId: null });
+
+  addDealNote = () => {
+    const text = this.state.newNoteText.trim();
+    if (!text) return;
+    const deal = this.state.deals.find(d => d.id === this.state.selectedDealId);
+    this.patchSelectedDeal({ activity: [{ id: 'a' + Date.now(), ts: NOW.toISOString(), text }, ...(deal.activity || [])] });
+    this.setState({ newNoteText: '' });
+  };
+  addContactNote = () => {
+    const text = this.state.newNoteText.trim();
+    if (!text) return;
+    this.setState(s => ({
+      contacts: s.contacts.map(c => c.id === s.selectedContactId ? { ...c, activity: [{ id: 'a' + Date.now(), ts: NOW.toISOString(), text }, ...(c.activity || [])] } : c),
+      newNoteText: ''
+    }));
+  };
+  onNewNoteTextChange = (e) => this.setState({ newNoteText: e.target.value });
+
+  setInvoiceStatus = (id) => (e) => {
+    const status = e.target.value;
+    this.setState(s => ({ invoices: s.invoices.map(i => i.id === id ? { ...i, status } : i) }));
+  };
+  openImportCsv = () => this.setState({ modal: 'importCsv', formCsvText: '' });
+  onFormLinkedDealChange = (e) => this.setState({ formLinkedDeal: e.target.value });
+  onFormCsvTextChange = (e) => this.setState({ formCsvText: e.target.value });
+
+  patchSelectedDeal = (patch) => this.setState(s => ({ deals: s.deals.map(d => d.id === s.selectedDealId ? { ...d, ...patch } : d) }));
+  onDealValueChange = (e) => this.patchSelectedDeal({ value: Number(e.target.value) || 0 });
+  onDealCloseDateChange = (e) => this.patchSelectedDeal({ closeDate: e.target.value });
+  onDealStageChange = (e) => {
+    const stage = e.target.value;
+    const deal = this.state.deals.find(d => d.id === this.state.selectedDealId);
+    this.patchSelectedDeal({ stage, activity: [{ id: 'a' + Date.now(), ts: NOW.toISOString(), text: 'Stage changed to ' + stage }, ...(deal.activity || [])] });
+  };
+  onDealNotesChange = (e) => this.patchSelectedDeal({ notes: e.target.value });
+  onNewTaskTextChange = (e) => this.setState({ newTaskText: e.target.value });
+  addTask = () => {
+    const text = this.state.newTaskText.trim();
+    if (!text) return;
+    this.patchSelectedDeal({ tasks: [...(this.state.deals.find(d => d.id === this.state.selectedDealId).tasks), { id: 't' + Date.now(), text, done: false }] });
+    this.setState({ newTaskText: '' });
+  };
+  toggleTask = (taskId) => () => {
+    const deal = this.state.deals.find(d => d.id === this.state.selectedDealId);
+    this.patchSelectedDeal({ tasks: deal.tasks.map(t => t.id === taskId ? { ...t, done: !t.done } : t) });
+  };
+
+  setProjectStatus = (projId) => (e) => {
+    const status = e.target.value;
+    this.setState(s => ({ projects: s.projects.map(p => p.id === projId ? { ...p, status } : p) }));
+  };
+  onNewSubtaskTextChange = (projId) => (e) => {
+    const val = e.target.value;
+    this.setState(s => ({ newSubtaskText: { ...s.newSubtaskText, [projId]: val } }));
+  };
+  onNewSubtaskDueChange = (projId) => (e) => {
+    const val = e.target.value;
+    this.setState(s => ({ newSubtaskDue: { ...s.newSubtaskDue, [projId]: val } }));
+  };
+  addSubtask = (projId) => () => {
+    const text = (this.state.newSubtaskText[projId] || '').trim();
+    if (!text) return;
+    const dueDate = this.state.newSubtaskDue[projId] || '';
+    this.setState(s => ({
+      projects: s.projects.map(p => p.id === projId ? { ...p, subtasks: [...(p.subtasks || []), { id: 'st' + Date.now(), text, done: false, dueDate }] } : p),
+      newSubtaskText: { ...s.newSubtaskText, [projId]: '' },
+      newSubtaskDue: { ...s.newSubtaskDue, [projId]: '' }
+    }));
+  };
+  toggleSubtask = (projId, subId) => () => {
+    this.setState(s => ({ projects: s.projects.map(p => p.id === projId ? { ...p, subtasks: (p.subtasks || []).map(t => t.id === subId ? { ...t, done: !t.done } : t) } : p) }));
+  };
+
+  openModal = (type) => () => this.setState({ modal: type, formName: '', formCompany: '', formEmail: '', formPhone: '', formTitle: '', formMessage: '', formValue: '', formCloseDate: '', formLinkedDeal: '', formCsvText: '' });
+  closeModal = () => this.setState({ modal: null });
+  stopProp = (e) => e.stopPropagation();
+  onFormNameChange = (e) => this.setState({ formName: e.target.value });
+  onFormCompanyChange = (e) => this.setState({ formCompany: e.target.value });
+  onFormEmailChange = (e) => this.setState({ formEmail: e.target.value });
+  onFormPhoneChange = (e) => this.setState({ formPhone: e.target.value });
+  onFormTitleChange = (e) => this.setState({ formTitle: e.target.value });
+  onFormMessageChange = (e) => this.setState({ formMessage: e.target.value });
+  onFormValueChange = (e) => this.setState({ formValue: e.target.value });
+  onFormCloseDateChange = (e) => this.setState({ formCloseDate: e.target.value });
+
+  submitModal = () => {
+    const s = this.state;
+    if (s.modal === 'newLead') {
+      const lead = { id: 'l' + Date.now(), name: s.formName || 'New contact', company: s.formCompany || '—', email: s.formEmail, message: s.formMessage || '—', source: 'Manual entry', receivedAt: '2026-07-27', status: 'new' };
+      this.setState({ leads: [lead, ...s.leads], modal: null });
+    } else if (s.modal === 'newDeal') {
+      const deal = { id: 'd' + Date.now(), title: s.formTitle || 'New Engagement', company: s.formCompany || '—', contactName: s.formName || '—', value: Number(s.formValue) || 0, stage: 'Lead', closeDate: s.formCloseDate || '', notes: '', tasks: [], activity: [] };
+      this.setState({ deals: [deal, ...s.deals], modal: null });
+    } else if (s.modal === 'newContact') {
+      const contact = { id: 'c' + Date.now(), name: s.formName || 'New contact', company: s.formCompany || '—', email: s.formEmail, phone: s.formPhone, title: s.formTitle, activity: [] };
+      this.setState({ contacts: [contact, ...s.contacts], modal: null });
+    } else if (s.modal === 'newInvoice') {
+      const invoice = { id: 'inv' + Date.now(), client: s.formCompany || '—', dealId: s.formLinkedDeal || null, amount: Number(s.formValue) || 0, status: 'Draft', issuedAt: NOW.toISOString().slice(0, 10), dueDate: s.formCloseDate || '' };
+      this.setState({ invoices: [invoice, ...s.invoices], modal: null });
+    } else if (s.modal === 'importCsv') {
+      const rows = s.formCsvText.split('\n').map(r => r.trim()).filter(Boolean);
+      const newLeads = rows.map((row, i) => {
+        const [name, company, email, message, source] = row.split(',').map(x => (x || '').trim());
+        return { id: 'l' + Date.now() + '_' + i, name: name || 'Unknown', company: company || '—', email: email || '', message: message || '—', source: source || 'CSV import', receivedAt: NOW.toISOString().slice(0, 10), status: 'new' };
+      });
+      this.setState({ leads: [...newLeads, ...s.leads], modal: null });
+    } else if (s.modal === 'newProject') {
+      const project = { id: 'p' + Date.now(), name: s.formTitle || 'New Engagement', client: s.formCompany || '—', status: 'Not started', progress: 0, dueDate: s.formCloseDate || '', subtasks: [] };
+      this.setState({ projects: [project, ...s.projects], modal: null });
+    }
+  };
+
+  renderVals() {
+    const s = this.state;
+    const navDefs = [
+      { id: 'dashboard', label: 'Dashboard' },
+      { id: 'leads', label: 'Leads' },
+      { id: 'deals', label: 'Deals' },
+      { id: 'projects', label: 'Projects' },
+      { id: 'contacts', label: 'Contacts' },
+      { id: 'invoices', label: 'Invoices' },
+      { id: 'reports', label: 'Reports' }
+    ];
+    const navItems = navDefs.map(n => ({
+      label: n.label,
+      current: s.view === n.id ? 'page' : 'false',
+      onClick: this.switchView(n.id)
+    }));
+
+    const openDeals = s.deals.filter(d => d.stage !== 'Won' && d.stage !== 'Lost');
+    const wonDeals = s.deals.filter(d => d.stage === 'Won');
+    const lostDeals = s.deals.filter(d => d.stage === 'Lost');
+    const pipelineValue = openDeals.reduce((a, d) => a + d.value, 0);
+    const winRate = wonDeals.length + lostDeals.length === 0 ? 0 : Math.round((wonDeals.length / (wonDeals.length + lostDeals.length)) * 100);
+    const newLeadsCount = s.leads.filter(l => l.status === 'new').length;
+
+    const statCards = [
+      { label: 'Open pipeline value', value: money(pipelineValue), hint: openDeals.length + ' open deals' },
+      { label: 'Open deals', value: String(openDeals.length), hint: 'Across all stages' },
+      { label: 'Win rate', value: winRate + '%', hint: wonDeals.length + ' won · ' + lostDeals.length + ' lost' },
+      { label: 'New leads', value: String(newLeadsCount), hint: 'Awaiting review' }
+    ];
+
+    const leadTag = (status) => status === 'new' ? { tagClass: 'tag tag-accent', statusLabel: 'New' } : { tagClass: 'tag tag-neutral', statusLabel: 'In pipeline' };
+
+    const recentLeads = s.leads.slice(0, 4).map(l => ({ name: l.name, company: l.company, ...leadTag(l.status) }));
+    const topDeals = [...openDeals].sort((a, b) => b.value - a.value).slice(0, 4).map(d => ({ title: d.title, company: d.company, valueLabel: money(d.value), stage: d.stage, onClick: () => this.selectDeal(d.id) }));
+
+    const leadsView = s.leads.map(l => ({ name: l.name, company: l.company, message: l.message, source: l.source, receivedLabel: daysAgo(l.receivedAt), ...leadTag(l.status), canConvert: l.status === 'new', onConvert: () => this.convertLead(l.id) }));
+
+    const dealColumns = STAGES.map(stage => {
+      const deals = s.deals.filter(d => d.stage === stage);
+      return {
+        name: stage,
+        count: deals.length,
+        valueLabel: money(deals.reduce((a, d) => a + d.value, 0)),
+        onDragOver: (e) => e.preventDefault(),
+        onDrop: this.handleDrop(stage),
+        deals: deals.map(d => ({ title: d.title, company: d.company, valueLabel: money(d.value), closeLabel: fmtDate(d.closeDate), onDragStart: this.handleDragStart(d.id), onClick: () => this.selectDeal(d.id) }))
+      };
+    });
+
+    const projTag = (status) => ({ 'Not started': 'tag tag-neutral', 'In progress': 'tag tag-accent', 'Blocked': 'tag tag-accent-2', 'Complete': 'tag tag-outline' }[status] || 'tag tag-neutral');
+    const projectsView = s.projects.map(p => {
+      const subtasks = p.subtasks || [];
+      const doneCount = subtasks.filter(t => t.done).length;
+      const progress = subtasks.length ? Math.round((doneCount / subtasks.length) * 100) : p.progress;
+      return {
+        name: p.name, client: p.client, status: p.status, dueLabel: fmtDate(p.dueDate),
+        tagClass: projTag(p.status),
+        barStyle: { height: '100%', width: progress + '%', background: 'var(--color-accent)', borderRadius: 'var(--radius-md)' },
+        onStatusChange: this.setProjectStatus(p.id),
+        subtasksLabel: subtasks.length ? (doneCount + ' of ' + subtasks.length + ' tasks done') : 'No tasks yet',
+        subtasks: subtasks.map(t => ({
+          text: t.text, done: t.done, dueLabel: fmtDate(t.dueDate),
+          onToggle: this.toggleSubtask(p.id, t.id),
+          textStyle: { textDecoration: t.done ? 'line-through' : 'none', opacity: t.done ? 0.55 : 1, flex: 1 }
+        })),
+        newSubtaskText: s.newSubtaskText[p.id] || '',
+        newSubtaskDue: s.newSubtaskDue[p.id] || '',
+        onNewSubtaskTextChange: this.onNewSubtaskTextChange(p.id),
+        onNewSubtaskDueChange: this.onNewSubtaskDueChange(p.id),
+        addSubtask: this.addSubtask(p.id)
+      };
+    });
+
+    const selectedDeal = s.selectedDealId ? (() => {
+      const d = s.deals.find(x => x.id === s.selectedDealId);
+      if (!d) return null;
+      return { ...d, tasks: d.tasks.map(t => ({ ...t, onToggle: this.toggleTask(t.id), textStyle: { textDecoration: t.done ? 'line-through' : 'none', opacity: t.done ? 0.55 : 1 } })), activity: (d.activity || []).map(a => ({ ...a, tsLabel: daysAgo(a.ts.slice(0, 10)) })) };
+    })() : null;
+
+    const contactsView = s.contacts.map(c => ({ ...c, onClick: () => this.selectContact(c.id) }));
+    const selectedContact = s.selectedContactId ? (() => {
+      const c = s.contacts.find(x => x.id === s.selectedContactId);
+      if (!c) return null;
+      return { ...c, activity: (c.activity || []).map(a => ({ ...a, tsLabel: daysAgo(a.ts.slice(0, 10)) })) };
+    })() : null;
+
+    const dealById = {};
+    s.deals.forEach(d => { dealById[d.id] = d; });
+    const invoicesView = s.invoices.map(inv => ({
+      client: inv.client,
+      dealTitle: inv.dealId && dealById[inv.dealId] ? dealById[inv.dealId].title : '—',
+      amountLabel: money(inv.amount),
+      issuedLabel: fmtDate(inv.issuedAt),
+      dueLabel: fmtDate(inv.dueDate),
+      status: inv.status,
+      onStatusChange: this.setInvoiceStatus(inv.id)
+    }));
+    const outstanding = s.invoices.filter(i => i.status !== 'Paid').reduce((a, i) => a + i.amount, 0);
+    const overdueCount = s.invoices.filter(i => i.status === 'Overdue').length;
+    const paidThisMonth = s.invoices.filter(i => i.status === 'Paid' && i.issuedAt && i.issuedAt.slice(0, 7) === NOW.toISOString().slice(0, 7)).reduce((a, i) => a + i.amount, 0);
+    const invoiceStats = [
+      { label: 'Outstanding', value: money(outstanding), hint: s.invoices.filter(i => i.status !== 'Paid').length + ' unpaid invoices' },
+      { label: 'Overdue', value: String(overdueCount), hint: 'Needs follow-up' },
+      { label: 'Paid this month', value: money(paidThisMonth), hint: NOW.toLocaleDateString('en-US', { month: 'long' }) }
+    ];
+    const wonDealOptions = s.deals.filter(d => d.stage === 'Won').map(d => ({ id: d.id, title: d.title }));
+
+    const sourceGroups = {};
+    s.leads.forEach(l => {
+      if (!sourceGroups[l.source]) sourceGroups[l.source] = { count: 0, converted: 0 };
+      sourceGroups[l.source].count++;
+      if (l.status === 'in_pipeline') sourceGroups[l.source].converted++;
+    });
+    const sourcePerf = Object.keys(sourceGroups).map(source => {
+      const g = sourceGroups[source];
+      return { source, count: g.count, converted: g.converted, rateLabel: g.count === 0 ? '0%' : Math.round((g.converted / g.count) * 100) + '%' };
+    });
+
+    const monthGroups = {};
+    s.deals.filter(d => d.stage === 'Won' && d.closeDate).forEach(d => {
+      const key = d.closeDate.slice(0, 7);
+      monthGroups[key] = (monthGroups[key] || 0) + d.value;
+    });
+    const monthKeys = Object.keys(monthGroups).sort();
+    let maxMonthVal = 1;
+    monthKeys.forEach(k => { if (monthGroups[k] > maxMonthVal) maxMonthVal = monthGroups[k]; });
+    const monthlyRevenue = monthKeys.map(key => {
+      const val = monthGroups[key];
+      return {
+        label: new Date(key + '-01T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        valueLabel: money(val),
+        barStyle: { height: '100%', width: Math.round((val / maxMonthVal) * 100) + '%', background: 'var(--color-accent)', borderRadius: 'var(--radius-md)' }
+      };
+    });
+
+    const headerMap = {
+      dashboard: ['Dashboard', 'Your pipeline at a glance', false, null, null],
+      leads: ['Leads', 'Inbound inquiries from your website and manual entry', true, 'Add lead', this.openModal('newLead')],
+      deals: ['Deals', 'Drag cards across stages to update status', true, 'Add deal', this.openModal('newDeal')],
+      projects: ['Projects', 'Delivery work for won engagements', true, 'Add project', this.openModal('newProject')],
+      contacts: ['Contacts', 'People and companies you work with', true, 'Add contact', this.openModal('newContact')],
+      invoices: ['Invoices', 'Track amounts owed and payment status', true, 'Add invoice', this.openModal('newInvoice')],
+      reports: ['Reports', 'Lead sources and revenue trends', false, null, null]
+    };
+    const [headerTitle, headerSubtitle, showHeaderAction, headerActionLabel, headerActionFn] = headerMap[s.view];
+
+    return {
+      navItems,
+      headerTitle, headerSubtitle, showHeaderAction, headerActionLabel, headerActionFn,
+      isDashboard: s.view === 'dashboard', isLeads: s.view === 'leads', isDeals: s.view === 'deals', isProjects: s.view === 'projects', isContacts: s.view === 'contacts', isInvoices: s.view === 'invoices', isReports: s.view === 'reports',
+      statCards, recentLeads, topDeals,
+      lastSyncedLabel: daysAgo(s.lastSynced.slice(0, 10)) === 'today' ? 'moments ago' : daysAgo(s.lastSynced.slice(0, 10)),
+      syncNow: this.syncNow, openImportCsv: this.openImportCsv,
+      leadsView,
+      dealsOpenCount: openDeals.length, dealsOpenValueLabel: money(pipelineValue),
+      dealColumns,
+      projectsView,
+      contacts: contactsView,
+      selectedDeal, closeDrawer: this.closeDrawer,
+      selectedContact, closeContactDrawer: this.closeContactDrawer, addContactNote: this.addContactNote,
+      onDealValueChange: this.onDealValueChange, onDealCloseDateChange: this.onDealCloseDateChange, onDealStageChange: this.onDealStageChange, onDealNotesChange: this.onDealNotesChange,
+      newTaskText: s.newTaskText, onNewTaskTextChange: this.onNewTaskTextChange, addTask: this.addTask,
+      newNoteText: s.newNoteText, onNewNoteTextChange: this.onNewNoteTextChange, addDealNote: this.addDealNote,
+      invoicesView, invoiceStats, wonDealOptions,
+      sourcePerf, monthlyRevenue,
+      modal: s.modal, modalTitle: s.modal === 'newLead' ? 'Add lead' : s.modal === 'newDeal' ? 'Add deal' : s.modal === 'newContact' ? 'Add contact' : s.modal === 'newInvoice' ? 'Add invoice' : s.modal === 'importCsv' ? 'Import leads from CSV' : s.modal === 'newProject' ? 'Add project' : '',
+      isLeadModal: s.modal === 'newLead', isDealModal: s.modal === 'newDeal', isContactModal: s.modal === 'newContact', isInvoiceModal: s.modal === 'newInvoice', isCsvModal: s.modal === 'importCsv', isProjectModal: s.modal === 'newProject',
+      closeModal: this.closeModal, stopProp: this.stopProp, submitModal: this.submitModal,
+      formName: s.formName, formCompany: s.formCompany, formEmail: s.formEmail, formPhone: s.formPhone, formTitle: s.formTitle, formMessage: s.formMessage, formValue: s.formValue, formCloseDate: s.formCloseDate, formLinkedDeal: s.formLinkedDeal, formCsvText: s.formCsvText,
+      onFormNameChange: this.onFormNameChange, onFormCompanyChange: this.onFormCompanyChange, onFormEmailChange: this.onFormEmailChange, onFormPhoneChange: this.onFormPhoneChange, onFormTitleChange: this.onFormTitleChange, onFormMessageChange: this.onFormMessageChange, onFormValueChange: this.onFormValueChange, onFormCloseDateChange: this.onFormCloseDateChange, onFormLinkedDealChange: this.onFormLinkedDealChange, onFormCsvTextChange: this.onFormCsvTextChange
+    };
+  }
+}
+
+</script>
+</body>
+</html>

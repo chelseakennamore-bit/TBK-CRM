@@ -1,0 +1,89 @@
+import { prisma } from "@/lib/prisma";
+import { PageHeader, Table, Th, Td, Tag } from "@/components/ui";
+import { AddLeadModal } from "@/components/modals/AddLeadModal";
+import { ImportCsvModal } from "@/components/modals/ImportCsvModal";
+import { SyncNowButton } from "./SyncNowButton";
+import { ConvertButton } from "./ConvertButton";
+import { daysAgo } from "@/lib/format";
+
+export const dynamic = "force-dynamic";
+
+export default async function LeadsPage() {
+  const [leads, lastSynced] = await Promise.all([
+    prisma.lead.findMany({ orderBy: { receivedAt: "desc" } }),
+    prisma.setting.findUnique({ where: { key: "lastSyncedAt" } }),
+  ]);
+
+  const lastSyncedLabel = lastSynced
+    ? daysAgo(lastSynced.value) === "today"
+      ? "moments ago"
+      : daysAgo(lastSynced.value)
+    : "never";
+
+  return (
+    <div>
+      <PageHeader
+        title="Leads"
+        subtitle="Inbound inquiries from your website and manual entry"
+        action={<AddLeadModal />}
+      />
+      <div className="mb-4 flex items-center gap-3">
+        <Tag variant="accent">Synced from Google Sheet</Tag>
+        <div className="text-sm text-zinc-500 dark:text-zinc-400">
+          Last synced {lastSyncedLabel}
+        </div>
+        <div className="ml-auto flex gap-2">
+          <ImportCsvModal />
+          <SyncNowButton />
+        </div>
+      </div>
+      <Table>
+        <thead>
+          <tr>
+            <Th>Name</Th>
+            <Th>Company</Th>
+            <Th>Inquiry</Th>
+            <Th>Source</Th>
+            <Th>Received</Th>
+            <Th>Status</Th>
+            <Th />
+          </tr>
+        </thead>
+        <tbody>
+          {leads.map((lead) => (
+            <tr key={lead.id}>
+              <Td className="font-semibold text-zinc-900 dark:text-zinc-50">
+                {lead.name}
+              </Td>
+              <Td>{lead.company}</Td>
+              <Td className="text-sm text-zinc-500 dark:text-zinc-400">
+                {lead.message}
+              </Td>
+              <Td className="text-sm text-zinc-500 dark:text-zinc-400">
+                {lead.source}
+              </Td>
+              <Td className="text-sm text-zinc-500 dark:text-zinc-400">
+                {daysAgo(lead.receivedAt)}
+              </Td>
+              <Td>
+                <Tag variant={lead.status === "new" ? "accent" : "neutral"}>
+                  {lead.status === "new" ? "New" : "In pipeline"}
+                </Tag>
+              </Td>
+              <Td>
+                {lead.status === "new" && <ConvertButton leadId={lead.id} />}
+              </Td>
+            </tr>
+          ))}
+          {leads.length === 0 && (
+            <tr>
+              <Td colSpan={7} className="text-center text-zinc-400">
+                No leads yet.
+              </Td>
+            </tr>
+          )}
+        </tbody>
+      </Table>
+    </div>
+  );
+}
