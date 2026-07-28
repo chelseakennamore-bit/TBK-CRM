@@ -2,7 +2,7 @@
 
 A lightweight CRM for TBK Enterprise Consulting, a solo consulting business. Covers the full loop: inbound leads → deals/pipeline → won engagement (project) → invoice, plus a contacts book and basic reporting.
 
-Built with Next.js (App Router, Server Actions), Prisma + SQLite, Tailwind CSS, and NextAuth for single-user login. This replaces an earlier static HTML/React design prototype (`design_handoff_crm/`) with a real persisted app.
+Built with Next.js (App Router, Server Actions), Prisma + Postgres, Tailwind CSS, and NextAuth for single-user login. This replaces an earlier static HTML/React design prototype (`design_handoff_crm/`) with a real persisted app.
 
 ## Screens
 
@@ -14,42 +14,40 @@ Built with Next.js (App Router, Server Actions), Prisma + SQLite, Tailwind CSS, 
 - **Invoices** — amounts owed, status tracking, optional link to a won deal
 - **Reports** — lead source performance, monthly revenue from won deals
 
-## Getting started
+## Getting started (local development)
+
+You need a Postgres database. The quickest options are a free [Neon](https://neon.tech) project (see `DEPLOY.md`) or a local Postgres install.
 
 ```bash
 npm install
-cp .env.example .env   # then edit AUTH_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
-npm run db:migrate     # creates the SQLite database
+cp .env.example .env   # fill in DATABASE_URL, AUTH_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
+npm run db:migrate     # applies the schema to your database
 npm run db:seed        # seeds sample data + the admin user
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and sign in with the `ADMIN_EMAIL` / `ADMIN_PASSWORD` from your `.env` (defaults: `admin@tbkconsulting.com` / `changeme123`).
 
+## Deploying
+
+See **[DEPLOY.md](./DEPLOY.md)** for step-by-step instructions to deploy this app to Vercel with a free Neon Postgres database.
+
 ## Environment variables
 
 See `.env.example`:
 
-- `DATABASE_URL` — SQLite file path (default `file:./dev.db`)
+- `DATABASE_URL` — Postgres connection string
 - `AUTH_SECRET` — random secret for NextAuth session signing (`openssl rand -base64 32`)
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` — credentials for the single seeded user account
-
-## Database
-
-Data is stored in SQLite via Prisma, which keeps local setup to zero external services. To move to a hosted Postgres database (e.g. Supabase or Neon) later:
-
-1. Update the `datasource` provider in `prisma/schema.prisma` to `postgresql`.
-2. Swap the driver adapter in `lib/prisma.ts` and `prisma/seed.ts` from `@prisma/adapter-better-sqlite3` to `@prisma/adapter-pg`.
-3. Point `DATABASE_URL` at the Postgres connection string.
-4. Run `npm run db:migrate` against the new database.
 
 ## Scripts
 
 - `npm run dev` — start the dev server
-- `npm run build` / `npm run start` — production build and start
+- `npm run build` — applies pending Prisma migrations (`prisma migrate deploy`) then builds for production; this is also what runs automatically on every Vercel deploy
+- `npm run start` — start the production server (after `build`)
 - `npm run lint` — ESLint
-- `npm run db:migrate` — run Prisma migrations
-- `npm run db:seed` — seed sample data + admin user (safe to re-run; skips if leads already exist)
+- `npm run db:migrate` — create and apply a new Prisma migration during local development
+- `npm run db:seed` — seed sample data + admin user (safe to re-run; skips sample data if leads already exist, but always upserts the admin user)
 
 ## Notes on scope
 
