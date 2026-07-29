@@ -22,18 +22,11 @@ model Lead {
   source     String
   receivedAt DateTime @default(now())
   status     String   @default("new") // new | in_pipeline
+  // Stable identifier for rows pulled in from an external source (e.g. a
+  // Google Sheet tab + row timestamp + email), used to avoid re-importing
+  // the same row on every sync. Null for leads created manually or via CSV.
+  sourceRef  String?  @unique
   createdAt  DateTime @default(now())
-}
-
-// Stand-in for an inbound Google Sheet / webhook queue that "Sync now" drains.
-model QueuedLead {
-  id        String   @id @default(cuid())
-  name      String
-  company   String
-  email     String
-  message   String
-  source    String
-  createdAt DateTime @default(now())
 }
 
 model Setting {

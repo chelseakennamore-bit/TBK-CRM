@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { fetchSheetTab, rowsToObjects } from "@/lib/googleSheets";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -49,24 +50,95 @@ export async function importLeadsCsv(formData: FormData) {
   revalidateLeadViews();
 }
 
-export async function syncNow() {
-  const next = await prisma.queuedLead.findFirst({
-    orderBy: { createdAt: "asc" },
-  });
+type SheetLead = {
+  name: string;
+  company: string;
+  email: string;
+  message: string;
+};
 
-  if (next) {
-    await prisma.lead.create({
-      data: {
-        name: next.name,
-        company: next.company,
-        email: next.email,
-        message: next.message,
-        source: next.source,
-        status: "new",
-      },
-    });
-    await prisma.queuedLead.delete({ where: { id: next.id } });
+type SheetTabConfig = {
+  tab: string;
+  sourceLabel: string;
+  mapRow: (row: Record<string, string>) => SheetLead | null;
+};
+
+// Maps the two intake tabs in the "TBK Contacts and Leads" sheet to Lead
+// fields. Column names come from the sheet's header row, so this stays
+// correct even if columns get reordered (but breaks if a header is renamed).
+const SHEET_TABS: SheetTabConfig[] = [
+  {
+    tab: "Contact",
+    sourceLabel: "Website contact form",
+    mapRow: (row) => {
+      if (!row.email && !row.name) return null;
+      return {
+        name: row.name || "Unknown",
+        company: row.Company || "—",
+        email: row.email || "",
+        message: row.message || "—",
+      };
+    },
+  },
+  {
+    tab: "Leads",
+    sourceLabel: "Website resource download",
+    mapRow: (row) => {
+      if (!row.email && !row.name) return null;
+      const resource = row.resource ? `Requested "${row.resource}"` : "Resource download inquiry";
+      const challenge = row.challenge ? ` — ${row.challenge}` : "";
+      return {
+        name: row.name || "Unknown",
+        company: row.business || "—",
+        email: row.email || "",
+        message: `${resource}${challenge}`,
+      };
+    },
+  },
+];
+
+function parseSheetTimestamp(raw: string): Date {
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+export async function syncNow(): Promise<{ importedCount: number }> {
+  const spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+  if (!spreadsheetId) {
+    throw new Error("GOOGLE_SHEETS_SPREADSHEET_ID is not configured.");
   }
+
+  const candidates: Array<{
+    name: string;
+    company: string;
+    email: string;
+    message: string;
+    source: string;
+    receivedAt: Date;
+    status: string;
+    sourceRef: string;
+  }> = [];
+
+  for (const config of SHEET_TABS) {
+    const values = await fetchSheetTab(spreadsheetId, config.tab);
+    for (const row of rowsToObjects(values)) {
+      const mapped = config.mapRow(row);
+      if (!mapped) continue;
+      const timestamp = row.timestamp || "";
+      const sourceRef = `${config.tab}:${timestamp}:${mapped.email || mapped.name}`;
+      candidates.push({
+        ...mapped,
+        source: row.Source || config.sourceLabel,
+        receivedAt: timestamp ? parseSheetTimestamp(timestamp) : new Date(),
+        status: "new",
+        sourceRef,
+      });
+    }
+  }
+
+  const result = candidates.length
+    ? await prisma.lead.createMany({ data: candidates, skipDuplicates: true })
+    : { count: 0 };
 
   const now = new Date().toISOString();
   await prisma.setting.upsert({
@@ -75,6 +147,8 @@ export async function syncNow() {
     create: { key: "lastSyncedAt", value: now },
   });
   revalidateLeadViews();
+
+  return { importedCount: result.count };
 }
 
 export async function convertLead(leadId: string) {
