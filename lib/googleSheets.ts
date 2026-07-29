@@ -8,16 +8,20 @@ function getAuthClient(): JWT {
   if (client) return client;
 
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const rawKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-  if (!email || !rawKey) {
+  const encodedKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64;
+  if (!email || !encodedKey) {
     throw new Error(
-      "GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY are not configured."
+      "GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64 are not configured."
     );
   }
 
+  // Stored base64-encoded (single line, no special characters) so pasting it
+  // into an env var UI can't lose or collapse the PEM's internal line breaks.
+  const key = Buffer.from(encodedKey, "base64").toString("utf8");
+
   client = new JWT({
     email,
-    key: rawKey.replace(/\\n/g, "\n"),
+    key,
     scopes: SCOPES,
   });
   return client;
