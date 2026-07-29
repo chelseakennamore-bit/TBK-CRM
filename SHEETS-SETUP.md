@@ -25,7 +25,15 @@ From the same JSON file, you need two fields plus the sheet's ID:
 |---|---|
 | `GOOGLE_SHEETS_SPREADSHEET_ID` | The long ID in the sheet's URL: `docs.google.com/spreadsheets/d/`**`1W_Akj80FhfHBSZwIS4M9Pbv5X_862tHDi_lywAoN55I`**`/edit...` |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | The `client_email` field from the JSON |
-| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | The `private_key` field from the JSON — copy it **exactly as-is**, including the `\n` sequences and the `-----BEGIN/END PRIVATE KEY-----` lines |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64` | The `private_key` field from the JSON, **base64-encoded** — see below |
+
+The private key needs to be base64-encoded before pasting it into Vercel. Pasting the raw multi-line key directly into a web form is unreliable — it's very easy for the line breaks inside the key to get lost or collapsed in transit, which silently breaks it (this happened during initial setup). Base64 turns it into one line with no special characters, so there's nothing left for a form field to mangle.
+
+To get the base64 value, on a Mac with the JSON file downloaded, open Terminal and run:
+```bash
+python3 -c "import json,base64; print(base64.b64encode(json.load(open('/path/to/your-key.json'))['private_key'].encode()).decode())"
+```
+(replace `/path/to/your-key.json` with the actual downloaded file path, e.g. `~/Downloads/tbk-crm-xxxxx.json`). Copy the single line it prints out — that's the value for `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64`.
 
 Add all three in Vercel → your project → **Settings → Environment Variables** (checking Production/Preview/Development like the others), then redeploy.
 
