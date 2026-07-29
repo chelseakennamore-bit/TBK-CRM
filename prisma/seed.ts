@@ -281,18 +281,6 @@ async function main() {
     },
   });
 
-  await prisma.queuedLead.create({
-    data: {
-      name: "Grace Whitfield",
-      company: "Whitfield & Sons Roofing",
-      email: "grace@whitfieldroofing.com",
-      message: "Need a lead intake and dispatch process overhaul.",
-      source: "Website contact form",
-    },
-  });
-  await prisma.setting.create({
-    data: { key: "lastSyncedAt", value: daysAgo(0).toISOString() },
-  });
 
   console.log("Seed complete. Admin login:", adminEmail, "/", adminPassword);
 }

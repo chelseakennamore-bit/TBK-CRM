@@ -7,7 +7,7 @@ Built with Next.js (App Router, Server Actions), Prisma + Postgres, Tailwind CSS
 ## Screens
 
 - **Dashboard** — pipeline stats, recent leads, top open deals
-- **Leads** — inbound inquiries, CSV import, "sync now" (stand-in for a Google Sheet/webhook feed), convert to deal
+- **Leads** — inbound inquiries synced from a Google Sheet, CSV import, convert to deal
 - **Deals** — drag-and-drop kanban pipeline, deal drawer with activity log and follow-up tasks
 - **Projects** — delivery work for won engagements, subtask checklists with auto-computed progress
 - **Contacts** — contact book with an activity/notes log
@@ -32,6 +32,10 @@ Open [http://localhost:3000](http://localhost:3000) and sign in with the `ADMIN_
 
 See **[DEPLOY.md](./DEPLOY.md)** for step-by-step instructions to deploy this app to Vercel with a free Neon Postgres database.
 
+## Google Sheets lead sync
+
+See **[SHEETS-SETUP.md](./SHEETS-SETUP.md)** for how to connect the Leads page's "Sync now" button to your real lead-capture spreadsheet.
+
 ## Environment variables
 
 See `.env.example`:
@@ -39,6 +43,7 @@ See `.env.example`:
 - `DATABASE_URL` — Postgres connection string
 - `AUTH_SECRET` — random secret for NextAuth session signing (`openssl rand -base64 32`)
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` — credentials for the single seeded user account
+- `GOOGLE_SHEETS_SPREADSHEET_ID` / `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` — see `SHEETS-SETUP.md`
 
 ## Scripts
 
@@ -52,5 +57,6 @@ See `.env.example`:
 ## Notes on scope
 
 - Auth is a single hardcoded admin account (no signup flow), matching the solo-user context.
-- "Sync now" on the Leads page drains a small seeded queue of pending inbound leads as a stand-in for a real Google Sheets/webhook integration — see the original design handoff (`design_handoff_crm/README.md`) for the intended real integration.
+- "Sync now" pulls from the "Leads" and "Contact" tabs of the real Google Sheet (see `SHEETS-SETUP.md`); it's manual/on-demand rather than scheduled.
+- There's no way to delete a lead from the UI yet — sheet rows that aren't real inquiries (test data, notification noise, etc.) will still get imported.
 - CSV import is a naive comma-split per line, no header-row detection, matching the original design intent — a production version should add quoted-field parsing and duplicate detection.
