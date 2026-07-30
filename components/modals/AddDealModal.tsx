@@ -2,8 +2,9 @@
 
 import { useActionState, useState } from "react";
 import { createDeal } from "@/app/actions/deals";
-import { Button, Field, Input } from "@/components/ui";
+import { Button, Field, Input, Select } from "@/components/ui";
 import { Modal } from "@/components/Modal";
+import { REVENUE_STREAMS } from "@/lib/constants";
 
 export function AddDealModal({ companyNames = [] }: { companyNames?: string[] }) {
   const [open, setOpen] = useState(false);
@@ -56,6 +57,16 @@ export function AddDealModal({ companyNames = [] }: { companyNames?: string[] })
                 <Input name="closeDate" type="date" />
               </Field>
             </div>
+            <Field label="Revenue stream">
+              <Select name="revenueStream" defaultValue="">
+                <option value="">—</option>
+                {REVENUE_STREAMS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+            </Field>
           </form>
         </Modal>
       )}

@@ -18,6 +18,7 @@ export async function createDeal(formData: FormData) {
   const contactName = String(formData.get("contactName") || "").trim() || "—";
   const value = Number(formData.get("value")) || 0;
   const closeDateRaw = String(formData.get("closeDate") || "");
+  const revenueStream = String(formData.get("revenueStream") || "").trim();
   const companyId = await findOrCreateCompanyId(company);
 
   await prisma.deal.create({
@@ -27,6 +28,7 @@ export async function createDeal(formData: FormData) {
       companyId,
       contactName,
       value,
+      revenueStream,
       stage: "Lead",
       closeDate: closeDateRaw ? new Date(closeDateRaw) : null,
     },
@@ -57,6 +59,36 @@ export async function updateDealCloseDate(dealId: string, closeDate: string) {
 
 export async function updateDealNotes(dealId: string, notes: string) {
   await prisma.deal.update({ where: { id: dealId }, data: { notes } });
+  revalidatePath("/deals");
+}
+
+export async function updateDealNextStep(
+  dealId: string,
+  nextStep: string,
+  nextStepDueAt: string
+) {
+  await prisma.deal.update({
+    where: { id: dealId },
+    data: {
+      nextStep: nextStep.trim(),
+      nextStepDueAt: nextStepDueAt ? new Date(nextStepDueAt) : null,
+    },
+  });
+  revalidatePath("/deals");
+  revalidatePath("/");
+}
+
+export async function updateDealRevenueStream(dealId: string, revenueStream: string) {
+  await prisma.deal.update({ where: { id: dealId }, data: { revenueStream } });
+  revalidatePath("/deals");
+  revalidatePath("/reports");
+}
+
+export async function updateDealClosedLostReason(dealId: string, reason: string) {
+  await prisma.deal.update({
+    where: { id: dealId },
+    data: { closedLostReason: reason.trim() },
+  });
   revalidatePath("/deals");
 }
 

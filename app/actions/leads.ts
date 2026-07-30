@@ -26,6 +26,15 @@ export async function createLead(formData: FormData) {
   await notifyNewLead(lead);
 }
 
+export async function updateLeadFollowUp(leadId: string, nextFollowUpAt: string) {
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: { nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null },
+  });
+  revalidatePath("/leads");
+  revalidatePath("/");
+}
+
 export async function importLeadsCsv(formData: FormData) {
   const text = String(formData.get("csvText") || "");
   const rows = text
@@ -183,7 +192,7 @@ export async function convertLead(leadId: string) {
         value: 0,
         stage: "Lead",
         notes: `Converted from inbound lead: ${lead.message}`,
-        activities: { create: [{ text: "Converted from inbound lead" }] },
+        activities: { create: [{ text: "Converted from inbound lead", source: "system" }] },
       },
     }),
   ]);

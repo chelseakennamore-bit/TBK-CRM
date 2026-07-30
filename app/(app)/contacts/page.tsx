@@ -16,6 +16,7 @@ export default async function ContactsPage() {
         email: true,
         phone: true,
         title: true,
+        nextFollowUpAt: true,
       },
     }),
     prisma.company.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
@@ -33,7 +34,12 @@ export default async function ContactsPage() {
           </div>
         }
       />
-      <ContactsTable contacts={contacts} />
+      <ContactsTable
+        contacts={contacts.map((c) => ({
+          ...c,
+          nextFollowUpAt: c.nextFollowUpAt ? c.nextFollowUpAt.toISOString() : null,
+        }))}
+      />
     </div>
   );
 }

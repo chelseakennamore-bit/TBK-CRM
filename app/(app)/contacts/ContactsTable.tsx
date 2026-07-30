@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { addContactNote } from "@/app/actions/contacts";
-import { Button, Field, Input, Table, Td, Th } from "@/components/ui";
+import {
+  addContactNote,
+  updateContactFollowUp,
+  updateContactMarketingConsent,
+} from "@/app/actions/contacts";
+import { Button, Field, Input, Table, Td, Th, Tag } from "@/components/ui";
 import { Modal } from "@/components/Modal";
-import { daysAgo } from "@/lib/format";
+import { daysAgo, fmtDate, toDateInputValue } from "@/lib/format";
 
 type Contact = {
   id: string;
@@ -13,14 +17,19 @@ type Contact = {
   email: string;
   phone: string;
   title: string;
+  nextFollowUpAt: string | null;
 };
 type Activity = { id: string; text: string; ts: string };
-type ContactDetail = Contact & { activities: Activity[] };
+type ContactDetail = Contact & { activities: Activity[]; marketingConsent: boolean };
+
+function isOverdue(dateStr: string | null): boolean {
+  if (!dateStr) return false;
+  return new Date(dateStr).getTime() < Date.now();
+}
 
 export function ContactsTable({ contacts }: { contacts: Contact[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ContactDetail | null>(null);
-  const [newNote, setNewNote] = useState("");
 
   useEffect(() => {
     if (!selectedId) return;
@@ -51,6 +60,7 @@ export function ContactsTable({ contacts }: { contacts: Contact[] }) {
             <Th>Email</Th>
             <Th>Phone</Th>
             <Th>Title</Th>
+            <Th>Follow-up</Th>
           </tr>
         </thead>
         <tbody>
@@ -75,11 +85,20 @@ export function ContactsTable({ contacts }: { contacts: Contact[] }) {
               </Td>
               <Td className="text-zinc-500 dark:text-zinc-400">{c.phone}</Td>
               <Td className="text-zinc-500 dark:text-zinc-400">{c.title}</Td>
+              <Td>
+                {c.nextFollowUpAt ? (
+                  <Tag variant={isOverdue(c.nextFollowUpAt) ? "accent-2" : "neutral"}>
+                    {fmtDate(c.nextFollowUpAt)}
+                  </Tag>
+                ) : (
+                  <span className="text-zinc-400">—</span>
+                )}
+              </Td>
             </tr>
           ))}
           {contacts.length === 0 && (
             <tr>
-              <Td colSpan={5} className="text-center text-zinc-400">
+              <Td colSpan={6} className="text-center text-zinc-400">
                 No contacts yet.
               </Td>
             </tr>
@@ -99,54 +118,101 @@ export function ContactsTable({ contacts }: { contacts: Contact[] }) {
           {!loadedDetail ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>
           ) : (
-            <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Email">
-                  <div className="text-sm">{loadedDetail.email || "—"}</div>
-                </Field>
-                <Field label="Phone">
-                  <div className="text-sm">{loadedDetail.phone || "—"}</div>
-                </Field>
-              </div>
-              <div>
-                <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  Activity
-                </div>
-                <div className="flex max-h-56 flex-col gap-2 overflow-y-auto">
-                  {loadedDetail.activities.map((a) => (
-                    <div key={a.id} className="text-sm">
-                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                        {daysAgo(a.ts)}
-                      </div>
-                      <div>{a.text}</div>
-                    </div>
-                  ))}
-                  {loadedDetail.activities.length === 0 && (
-                    <div className="text-sm text-zinc-400">No activity yet.</div>
-                  )}
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <Input
-                    placeholder="Add a note"
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                  />
-                  <Button
-                    onClick={async () => {
-                      if (!newNote.trim() || !loadedDetail) return;
-                      await addContactNote(loadedDetail.id, newNote);
-                      setNewNote("");
-                      await refreshDetail();
-                    }}
-                  >
-                    Add
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <ContactDetailBody
+              key={loadedDetail.id}
+              detail={loadedDetail}
+              onRefresh={refreshDetail}
+            />
           )}
         </Modal>
       )}
     </>
+  );
+}
+
+function ContactDetailBody({
+  detail,
+  onRefresh,
+}: {
+  detail: ContactDetail;
+  onRefresh: () => Promise<void>;
+}) {
+  const [followUpDate, setFollowUpDate] = useState(toDateInputValue(detail.nextFollowUpAt));
+  const [consent, setConsent] = useState(detail.marketingConsent);
+  const [newNote, setNewNote] = useState("");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Email">
+          <div className="text-sm">{detail.email || "—"}</div>
+        </Field>
+        <Field label="Phone">
+          <div className="text-sm">{detail.phone || "—"}</div>
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Next follow-up">
+          <Input
+            type="date"
+            value={followUpDate}
+            onChange={(e) => {
+              setFollowUpDate(e.target.value);
+              updateContactFollowUp(detail.id, e.target.value);
+            }}
+          />
+        </Field>
+        <label className="flex items-center gap-2 pt-5 text-sm">
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => {
+              setConsent(e.target.checked);
+              updateContactMarketingConsent(detail.id, e.target.checked);
+            }}
+          />
+          <span className="text-zinc-700 dark:text-zinc-300">
+            OK to send marketing emails
+          </span>
+        </label>
+      </div>
+
+      <div>
+        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Activity
+        </div>
+        <div className="flex max-h-56 flex-col gap-2 overflow-y-auto">
+          {detail.activities.map((a) => (
+            <div key={a.id} className="text-sm">
+              <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                {daysAgo(a.ts)}
+              </div>
+              <div>{a.text}</div>
+            </div>
+          ))}
+          {detail.activities.length === 0 && (
+            <div className="text-sm text-zinc-400">No activity yet.</div>
+          )}
+        </div>
+        <div className="mt-2 flex gap-2">
+          <Input
+            placeholder="Add a note"
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+          />
+          <Button
+            onClick={async () => {
+              if (!newNote.trim()) return;
+              await addContactNote(detail.id, newNote);
+              setNewNote("");
+              await onRefresh();
+            }}
+          >
+            Add
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

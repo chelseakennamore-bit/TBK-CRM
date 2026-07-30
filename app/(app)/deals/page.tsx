@@ -21,6 +21,8 @@ export default async function DealsPage({
         value: true,
         stage: true,
         closeDate: true,
+        nextStep: true,
+        nextStepDueAt: true,
       },
     }),
     prisma.company.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
@@ -43,6 +45,7 @@ export default async function DealsPage({
         initialDeals={deals.map((d) => ({
           ...d,
           closeDate: d.closeDate ? d.closeDate.toISOString() : null,
+          nextStepDueAt: d.nextStepDueAt ? d.nextStepDueAt.toISOString() : null,
         }))}
         initialSelectedId={deal}
       />
