@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   addDealNote,
   addDealTask,
+  addQuoteLineItem,
+  deleteQuoteLineItem,
   toggleDealTask,
   updateDealCloseDate,
   updateDealClosedLostReason,
@@ -12,7 +14,9 @@ import {
   updateDealContact,
   updateDealNextStep,
   updateDealNotes,
+  updateDealPaymentTerms,
   updateDealProbability,
+  updateDealQuoteType,
   updateDealRevenueStream,
   updateDealScopeOfWork,
   updateDealStage,
@@ -22,7 +26,7 @@ import {
 import { Button, Field, Input, LinkButton, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
-import { REVENUE_STREAMS, STAGES, STAGE_PROBABILITY } from "@/lib/constants";
+import { QUOTE_TYPES, REVENUE_STREAMS, STAGES, STAGE_PROBABILITY } from "@/lib/constants";
 
 type ContactOption = { id: string; name: string; company: string };
 
@@ -39,6 +43,14 @@ type DealSummary = {
 
 type Task = { id: string; text: string; done: boolean };
 type Activity = { id: string; text: string; ts: string };
+type LineItem = {
+  id: string;
+  description: string;
+  detail: string;
+  seats: number | null;
+  unitPrice: number | null;
+  amount: number;
+};
 type DealDetail = DealSummary & {
   contactName: string;
   contactId: string | null;
@@ -47,8 +59,11 @@ type DealDetail = DealSummary & {
   revenueStream: string;
   closedLostReason: string;
   probability: number;
+  quoteType: string;
+  paymentTerms: string;
   tasks: Task[];
   activities: Activity[];
+  lineItems: LineItem[];
 };
 
 function isOverdue(dateStr: string | null): boolean {
@@ -287,6 +302,13 @@ export function DealsBoard({
                 setDetail((prev) => (prev ? { ...prev, contactId, contactName } : prev));
                 updateDealContact(loadedDetail.id, contactId, contactName);
               }}
+              onQuoteTypeCommit={(quoteType) => {
+                setDetail((prev) => (prev ? { ...prev, quoteType } : prev));
+                updateDealQuoteType(loadedDetail.id, quoteType);
+              }}
+              onPaymentTermsCommit={(paymentTerms) =>
+                updateDealPaymentTerms(loadedDetail.id, paymentTerms)
+              }
               onAddNote={async (text) => {
                 await addDealNote(loadedDetail.id, text);
                 await refreshDetail();
@@ -332,6 +354,8 @@ function DealDrawerBody({
   onProbabilityCommit,
   onCompanyCommit,
   onContactCommit,
+  onQuoteTypeCommit,
+  onPaymentTermsCommit,
   onAddNote,
   onAddTask,
   onToggleTask,
@@ -351,6 +375,8 @@ function DealDrawerBody({
   onProbabilityCommit: (probability: number) => void;
   onCompanyCommit: (company: string) => void;
   onContactCommit: (contactId: string, contactName: string) => void;
+  onQuoteTypeCommit: (quoteType: string) => void;
+  onPaymentTermsCommit: (paymentTerms: string) => void;
   onAddNote: (text: string) => Promise<void>;
   onAddTask: (text: string) => Promise<void>;
   onToggleTask: (taskId: string, done: boolean) => Promise<void>;
@@ -369,6 +395,8 @@ function DealDrawerBody({
   const [revenueStream, setRevenueStream] = useState(detail.revenueStream);
   const [closedLostReason, setClosedLostReason] = useState(detail.closedLostReason);
   const [probability, setProbability] = useState(String(detail.probability));
+  const [quoteType, setQuoteType] = useState(detail.quoteType);
+  const [paymentTerms, setPaymentTerms] = useState(detail.paymentTerms);
   const [newNote, setNewNote] = useState("");
   const [newTask, setNewTask] = useState("");
   const weightedValue = Math.round((Number(value) || 0) * (Number(probability) || 0)) / 100;
@@ -546,6 +574,41 @@ function DealDrawerBody({
         </Field>
       </div>
 
+      <div className="border-t border-zinc-200 pt-4 dark:border-zinc-800">
+        <Label>Quote</Label>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Quote type">
+            <Select
+              value={quoteType}
+              onChange={(e) => {
+                setQuoteType(e.target.value);
+                onQuoteTypeCommit(e.target.value);
+              }}
+            >
+              {QUOTE_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Payment terms">
+            <Input
+              value={paymentTerms}
+              onChange={(e) => setPaymentTerms(e.target.value)}
+              onBlur={() => onPaymentTermsCommit(paymentTerms)}
+            />
+          </Field>
+        </div>
+
+        <QuoteLineItemsEditor
+          dealId={detail.id}
+          quoteType={quoteType}
+          initialItems={detail.lineItems}
+        />
+      </div>
+
       <Field label="Scope of work (shown on the quote)">
         <Textarea
           rows={4}
@@ -649,6 +712,126 @@ function Label({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
       {children}
+    </div>
+  );
+}
+
+function QuoteLineItemsEditor({
+  dealId,
+  quoteType,
+  initialItems,
+}: {
+  dealId: string;
+  quoteType: string;
+  initialItems: LineItem[];
+}) {
+  const [items, setItems] = useState(initialItems);
+  const [description, setDescription] = useState("");
+  const [detail, setDetail] = useState("");
+  const [seats, setSeats] = useState("");
+  const [unitPrice, setUnitPrice] = useState("");
+  const [amount, setAmount] = useState("");
+  const isSubscription = quoteType === "subscription";
+
+  async function handleAdd() {
+    if (!description.trim()) return;
+    const created = await addQuoteLineItem(dealId, {
+      description,
+      detail,
+      seats: isSubscription && seats ? Number(seats) : null,
+      unitPrice: isSubscription && unitPrice ? Number(unitPrice) : null,
+      amount: Number(amount) || 0,
+    });
+    if (created) setItems((prev) => [...prev, created]);
+    setDescription("");
+    setDetail("");
+    setSeats("");
+    setUnitPrice("");
+    setAmount("");
+  }
+
+  async function handleDelete(id: string) {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    await deleteQuoteLineItem(id);
+  }
+
+  return (
+    <div className="mt-3">
+      <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+        Line items{" "}
+        <span className="font-normal text-zinc-400">
+          (optional — leave empty to quote the deal value as one line)
+        </span>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 px-2.5 py-1.5 text-sm dark:border-zinc-800"
+          >
+            <div className="min-w-0">
+              <span className="font-medium text-zinc-900 dark:text-zinc-50">
+                {item.description}
+              </span>
+              {item.detail && (
+                <span className="text-zinc-500 dark:text-zinc-400"> · {item.detail}</span>
+              )}
+              {isSubscription && item.seats != null && (
+                <span className="text-zinc-500 dark:text-zinc-400"> · {item.seats} seats</span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="text-zinc-700 dark:text-zinc-300">{money(item.amount)}</span>
+              <button
+                type="button"
+                onClick={() => handleDelete(item.id)}
+                className="text-zinc-400 hover:text-red-500"
+                aria-label="Remove line item"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-1.5">
+        <Input
+          placeholder={isSubscription ? "Item" : "Deliverable"}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <Input
+          placeholder={isSubscription ? "Billing (e.g. Annual)" : "Type (e.g. Fixed Fee Project)"}
+          value={detail}
+          onChange={(e) => setDetail(e.target.value)}
+        />
+        {isSubscription && (
+          <>
+            <Input
+              type="number"
+              placeholder="Seats"
+              value={seats}
+              onChange={(e) => setSeats(e.target.value)}
+            />
+            <Input
+              type="number"
+              placeholder="Unit price"
+              value={unitPrice}
+              onChange={(e) => setUnitPrice(e.target.value)}
+            />
+          </>
+        )}
+        <Input
+          type="number"
+          placeholder="Amount"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+        <Button type="button" onClick={handleAdd}>
+          Add line item
+        </Button>
+      </div>
     </div>
   );
 }
