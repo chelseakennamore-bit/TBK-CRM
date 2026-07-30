@@ -11,17 +11,20 @@ export default async function DealsPage({
   searchParams: Promise<{ deal?: string }>;
 }) {
   const { deal } = await searchParams;
-  const deals = await prisma.deal.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      company: true,
-      value: true,
-      stage: true,
-      closeDate: true,
-    },
-  });
+  const [deals, companies] = await Promise.all([
+    prisma.deal.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        company: true,
+        value: true,
+        stage: true,
+        closeDate: true,
+      },
+    }),
+    prisma.company.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
+  ]);
 
   return (
     <div>
@@ -31,7 +34,7 @@ export default async function DealsPage({
         action={
           <div className="flex gap-2">
             <LinkButton href="/api/export/deals">Export CSV</LinkButton>
-            <AddDealModal />
+            <AddDealModal companyNames={companies.map((c) => c.name)} />
           </div>
         }
       />

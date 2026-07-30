@@ -5,7 +5,7 @@ import { createDeal } from "@/app/actions/deals";
 import { Button, Field, Input } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 
-export function AddDealModal() {
+export function AddDealModal({ companyNames = [] }: { companyNames?: string[] }) {
   const [open, setOpen] = useState(false);
   const [, formAction, pending] = useActionState(async (_prev: null, formData: FormData) => {
     await createDeal(formData);
@@ -38,7 +38,12 @@ export function AddDealModal() {
               <Input name="title" required />
             </Field>
             <Field label="Company">
-              <Input name="company" />
+              <Input name="company" list="company-names" />
+              <datalist id="company-names">
+                {companyNames.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </Field>
             <Field label="Contact name">
               <Input name="contactName" />

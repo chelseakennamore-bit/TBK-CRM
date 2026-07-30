@@ -5,7 +5,7 @@ import { createContact } from "@/app/actions/contacts";
 import { Button, Field, Input } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 
-export function AddContactModal() {
+export function AddContactModal({ companyNames = [] }: { companyNames?: string[] }) {
   const [open, setOpen] = useState(false);
   const [, formAction, pending] = useActionState(async (_prev: null, formData: FormData) => {
     await createContact(formData);
@@ -38,7 +38,12 @@ export function AddContactModal() {
               <Input name="name" required />
             </Field>
             <Field label="Company">
-              <Input name="company" />
+              <Input name="company" list="company-names" />
+              <datalist id="company-names">
+                {companyNames.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </Field>
             <Field label="Title">
               <Input name="title" />
