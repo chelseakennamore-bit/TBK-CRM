@@ -14,19 +14,20 @@ model User {
 }
 
 model Lead {
-  id         String   @id @default(cuid())
-  name       String
-  company    String
-  email      String
-  message    String
-  source     String
-  receivedAt DateTime @default(now())
-  status     String   @default("new") // new | in_pipeline
+  id             String    @id @default(cuid())
+  name           String
+  company        String
+  email          String
+  message        String
+  source         String
+  receivedAt     DateTime  @default(now())
+  status         String    @default("new") // new | in_pipeline
+  nextFollowUpAt DateTime?
   // Stable identifier for rows pulled in from an external source (e.g. a
   // Google Sheet tab + row timestamp + email), used to avoid re-importing
   // the same row on every sync. Null for leads created manually or via CSV.
-  sourceRef  String?  @unique
-  createdAt  DateTime @default(now())
+  sourceRef      String?   @unique
+  createdAt      DateTime  @default(now())
 }
 
 model Setting {
@@ -51,34 +52,41 @@ model Company {
 }
 
 model Contact {
-  id            String     @id @default(cuid())
-  name          String
-  company       String
-  companyId     String?
-  companyRecord Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  email         String
-  phone         String
-  title         String
-  activities    Activity[]
-  createdAt     DateTime   @default(now())
+  id                String     @id @default(cuid())
+  name              String
+  company           String
+  companyId         String?
+  companyRecord     Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  email             String
+  phone             String
+  title             String
+  nextFollowUpAt    DateTime?
+  marketingConsent  Boolean    @default(false)
+  activities        Activity[]
+  createdAt         DateTime   @default(now())
 }
 
 model Deal {
-  id            String     @id @default(cuid())
-  title         String
-  company       String
-  companyId     String?
-  companyRecord Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  contactName   String
-  value         Float      @default(0)
-  stage         String     @default("Lead") // Lead | Qualified | Proposal | Negotiation | Won | Lost
-  closeDate     DateTime?
-  notes         String     @default("")
-  tasks         Task[]
-  activities    Activity[]
-  invoices      Invoice[]
-  projects      Project[]
-  createdAt     DateTime   @default(now())
+  id                String     @id @default(cuid())
+  title             String
+  company           String
+  companyId         String?
+  companyRecord     Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactName       String
+  value             Float      @default(0)
+  stage             String     @default("Lead") // Lead | Qualified | Proposal | Negotiation | Won | Lost
+  closeDate         DateTime?
+  notes             String     @default("")
+  nextStep          String     @default("")
+  nextStepDueAt     DateTime?
+  revenueStream     String     @default("")
+  closedLostReason  String     @default("")
+  tasks             Task[]
+  activities        Activity[]
+  invoices          Invoice[]
+  projects          Project[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 }
 
 model Task {
@@ -98,6 +106,10 @@ model Activity {
   contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
   ts        DateTime @default(now())
   text      String
+  // Who/what logged this: "user" (default), "system" (e.g. lead
+  // conversion), "sheet_sync", "webhook" -- lets a future automation or
+  // agent identify its own entries without guessing from the text.
+  source    String   @default("user")
 }
 
 model Project {

@@ -7,14 +7,17 @@ import {
   addDealTask,
   toggleDealTask,
   updateDealCloseDate,
+  updateDealClosedLostReason,
+  updateDealNextStep,
   updateDealNotes,
+  updateDealRevenueStream,
   updateDealStage,
   updateDealValue,
 } from "@/app/actions/deals";
-import { Button, Field, Input, Select, Textarea } from "@/components/ui";
+import { Button, Field, Input, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
-import { STAGES } from "@/lib/constants";
+import { REVENUE_STREAMS, STAGES } from "@/lib/constants";
 
 type DealSummary = {
   id: string;
@@ -23,6 +26,8 @@ type DealSummary = {
   value: number;
   stage: string;
   closeDate: string | null;
+  nextStep: string;
+  nextStepDueAt: string | null;
 };
 
 type Task = { id: string; text: string; done: boolean };
@@ -30,9 +35,16 @@ type Activity = { id: string; text: string; ts: string };
 type DealDetail = DealSummary & {
   contactName: string;
   notes: string;
+  revenueStream: string;
+  closedLostReason: string;
   tasks: Task[];
   activities: Activity[];
 };
+
+function isOverdue(dateStr: string | null): boolean {
+  if (!dateStr) return false;
+  return new Date(dateStr).getTime() < Date.now();
+}
 
 export function DealsBoard({
   initialDeals,
@@ -161,6 +173,24 @@ export function DealsBoard({
                       {fmtDate(deal.closeDate)}
                     </div>
                   </div>
+                  {deal.stage !== "Won" && deal.stage !== "Lost" && (
+                    <div className="mt-2 border-t border-zinc-100 pt-2 dark:border-zinc-800">
+                      {deal.nextStep ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="truncate text-xs text-zinc-600 dark:text-zinc-300">
+                            {deal.nextStep}
+                          </div>
+                          {isOverdue(deal.nextStepDueAt) && (
+                            <Tag variant="accent-2" className="shrink-0">
+                              Overdue
+                            </Tag>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-zinc-400">No next step</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               {col.deals.length === 0 && (
@@ -202,6 +232,16 @@ export function DealsBoard({
                 patchSummary(loadedDetail.id, { stage });
                 updateDealStage(loadedDetail.id, stage).then(refreshDetail);
               }}
+              onNextStepCommit={(nextStep, nextStepDueAt) => {
+                patchSummary(loadedDetail.id, { nextStep, nextStepDueAt: nextStepDueAt || null });
+                updateDealNextStep(loadedDetail.id, nextStep, nextStepDueAt);
+              }}
+              onRevenueStreamCommit={(revenueStream) =>
+                updateDealRevenueStream(loadedDetail.id, revenueStream)
+              }
+              onClosedLostReasonCommit={(reason) =>
+                updateDealClosedLostReason(loadedDetail.id, reason)
+              }
               onAddNote={async (text) => {
                 await addDealNote(loadedDetail.id, text);
                 await refreshDetail();
@@ -237,6 +277,9 @@ function DealDrawerBody({
   onCloseDateCommit,
   onNotesCommit,
   onStageChange,
+  onNextStepCommit,
+  onRevenueStreamCommit,
+  onClosedLostReasonCommit,
   onAddNote,
   onAddTask,
   onToggleTask,
@@ -246,6 +289,9 @@ function DealDrawerBody({
   onCloseDateCommit: (closeDate: string) => void;
   onNotesCommit: (notes: string) => void;
   onStageChange: (stage: string) => void;
+  onNextStepCommit: (nextStep: string, nextStepDueAt: string) => void;
+  onRevenueStreamCommit: (revenueStream: string) => void;
+  onClosedLostReasonCommit: (reason: string) => void;
   onAddNote: (text: string) => Promise<void>;
   onAddTask: (text: string) => Promise<void>;
   onToggleTask: (taskId: string, done: boolean) => Promise<void>;
@@ -253,6 +299,11 @@ function DealDrawerBody({
   const [value, setValue] = useState(String(detail.value));
   const [closeDate, setCloseDate] = useState(toDateInputValue(detail.closeDate));
   const [notes, setNotes] = useState(detail.notes);
+  const [stage, setStage] = useState(detail.stage);
+  const [nextStep, setNextStep] = useState(detail.nextStep);
+  const [nextStepDueAt, setNextStepDueAt] = useState(toDateInputValue(detail.nextStepDueAt));
+  const [revenueStream, setRevenueStream] = useState(detail.revenueStream);
+  const [closedLostReason, setClosedLostReason] = useState(detail.closedLostReason);
   const [newNote, setNewNote] = useState("");
   const [newTask, setNewTask] = useState("");
 
@@ -279,18 +330,72 @@ function DealDrawerBody({
         </Field>
       </div>
 
-      <Field label="Stage">
-        <Select
-          value={detail.stage}
-          onChange={(e) => onStageChange(e.target.value)}
-        >
-          {STAGES.map((stage) => (
-            <option key={stage} value={stage}>
-              {stage}
-            </option>
-          ))}
-        </Select>
-      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Stage">
+          <Select
+            value={stage}
+            onChange={(e) => {
+              const next = e.target.value;
+              setStage(next);
+              onStageChange(next);
+            }}
+          >
+            {STAGES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Revenue stream">
+          <Select
+            value={revenueStream}
+            onChange={(e) => {
+              setRevenueStream(e.target.value);
+              onRevenueStreamCommit(e.target.value);
+            }}
+          >
+            <option value="">—</option>
+            {REVENUE_STREAMS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
+
+      {stage === "Lost" && (
+        <Field label="Why was this lost?">
+          <Input
+            value={closedLostReason}
+            placeholder="e.g. went with an in-house hire"
+            onChange={(e) => setClosedLostReason(e.target.value)}
+            onBlur={() => onClosedLostReasonCommit(closedLostReason)}
+          />
+        </Field>
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Next step">
+          <Input
+            value={nextStep}
+            placeholder="e.g. send proposal"
+            onChange={(e) => setNextStep(e.target.value)}
+            onBlur={() => onNextStepCommit(nextStep, nextStepDueAt)}
+          />
+        </Field>
+        <Field label="Next step due">
+          <Input
+            type="date"
+            value={nextStepDueAt}
+            onChange={(e) => {
+              setNextStepDueAt(e.target.value);
+              onNextStepCommit(nextStep, e.target.value);
+            }}
+          />
+        </Field>
+      </div>
 
       <Field label="Notes">
         <Textarea

@@ -4,7 +4,8 @@ import { AddLeadModal } from "@/components/modals/AddLeadModal";
 import { ImportCsvModal } from "@/components/modals/ImportCsvModal";
 import { SyncNowButton } from "./SyncNowButton";
 import { ConvertButton } from "./ConvertButton";
-import { daysAgo } from "@/lib/format";
+import { LeadFollowUpDate } from "./LeadFollowUpDate";
+import { daysAgo, toDateInputValue } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ export default async function LeadsPage() {
             <Th>Source</Th>
             <Th>Received</Th>
             <Th>Status</Th>
+            <Th>Follow-up</Th>
             <Th />
           </tr>
         </thead>
@@ -72,13 +74,19 @@ export default async function LeadsPage() {
                 </Tag>
               </Td>
               <Td>
+                <LeadFollowUpDate
+                  leadId={lead.id}
+                  initialDate={toDateInputValue(lead.nextFollowUpAt)}
+                />
+              </Td>
+              <Td>
                 {lead.status === "new" && <ConvertButton leadId={lead.id} />}
               </Td>
             </tr>
           ))}
           {leads.length === 0 && (
             <tr>
-              <Td colSpan={7} className="text-center text-zinc-400">
+              <Td colSpan={8} className="text-center text-zinc-400">
                 No leads yet.
               </Td>
             </tr>
