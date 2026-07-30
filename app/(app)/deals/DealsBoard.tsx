@@ -13,6 +13,7 @@ import {
   updateDealProbability,
   updateDealRevenueStream,
   updateDealStage,
+  updateDealTitle,
   updateDealValue,
 } from "@/app/actions/deals";
 import { Button, Field, Input, Select, Tag, Textarea } from "@/components/ui";
@@ -221,6 +222,11 @@ export function DealsBoard({
             <DealDrawerBody
               key={loadedDetail.id}
               detail={loadedDetail}
+              onTitleCommit={(title) => {
+                patchSummary(loadedDetail.id, { title });
+                setDetail((prev) => (prev ? { ...prev, title } : prev));
+                updateDealTitle(loadedDetail.id, title);
+              }}
               onValueCommit={(value) => {
                 patchSummary(loadedDetail.id, { value });
                 updateDealValue(loadedDetail.id, value);
@@ -278,6 +284,7 @@ export function DealsBoard({
 
 function DealDrawerBody({
   detail,
+  onTitleCommit,
   onValueCommit,
   onCloseDateCommit,
   onNotesCommit,
@@ -291,6 +298,7 @@ function DealDrawerBody({
   onToggleTask,
 }: {
   detail: DealDetail;
+  onTitleCommit: (title: string) => void;
   onValueCommit: (value: number) => void;
   onCloseDateCommit: (closeDate: string) => void;
   onNotesCommit: (notes: string) => void;
@@ -303,6 +311,7 @@ function DealDrawerBody({
   onAddTask: (text: string) => Promise<void>;
   onToggleTask: (taskId: string, done: boolean) => Promise<void>;
 }) {
+  const [title, setTitle] = useState(detail.title);
   const [value, setValue] = useState(String(detail.value));
   const [closeDate, setCloseDate] = useState(toDateInputValue(detail.closeDate));
   const [notes, setNotes] = useState(detail.notes);
@@ -318,6 +327,18 @@ function DealDrawerBody({
 
   return (
     <div className="flex flex-col gap-4">
+      <Field label="Deal title">
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={() => {
+            const trimmed = title.trim() || "New Engagement";
+            setTitle(trimmed);
+            onTitleCommit(trimmed);
+          }}
+        />
+      </Field>
+
       <div className="grid grid-cols-2 gap-3">
         <Field label="Value">
           <Input
