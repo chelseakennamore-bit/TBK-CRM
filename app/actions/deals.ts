@@ -150,6 +150,14 @@ export async function updateDealQuoteType(dealId: string, quoteType: string) {
   revalidatePath("/deals");
 }
 
+export async function updateDealQuoteProductName(dealId: string, quoteProductName: string) {
+  await prisma.deal.update({
+    where: { id: dealId },
+    data: { quoteProductName: quoteProductName.trim() },
+  });
+  revalidatePath("/deals");
+}
+
 export async function updateDealPaymentTerms(dealId: string, paymentTerms: string) {
   await prisma.deal.update({
     where: { id: dealId },

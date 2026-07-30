@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { fetchSheetTab, rowsToObjects } from "@/lib/googleSheets";
 import { notifyNewLead } from "@/lib/webhooks";
 import { findOrCreateCompanyId } from "@/app/actions/companies";
+import { findOrCreateContactId } from "@/app/actions/contacts";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -177,6 +178,12 @@ export async function convertLead(leadId: string) {
   if (!lead) return;
 
   const companyId = await findOrCreateCompanyId(lead.company);
+  const contactId = await findOrCreateContactId(
+    lead.name,
+    lead.company,
+    lead.email,
+    companyId
+  );
 
   await prisma.$transaction([
     prisma.lead.update({
@@ -189,6 +196,7 @@ export async function convertLead(leadId: string) {
         company: lead.company,
         companyId,
         contactName: lead.name,
+        contactId,
         value: 0,
         stage: "Lead",
         notes: `Converted from inbound lead: ${lead.message}`,
@@ -200,5 +208,6 @@ export async function convertLead(leadId: string) {
   revalidateLeadViews();
   revalidatePath("/deals");
   revalidatePath("/companies");
+  revalidatePath("/contacts");
   redirect("/deals");
 }

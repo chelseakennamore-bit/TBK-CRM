@@ -98,6 +98,10 @@ model Deal {
   // Price/Total). quoteNumber and quoteIssuedAt are assigned once, the
   // first time this deal's quote is viewed, so reprints stay stable.
   quoteType         String     @default("service") // service | subscription
+  // Subscription quotes only: the named SaaS product/plan this quote is
+  // for (e.g. "RevOps Ledger"), shown as the quote's heading in place of
+  // the generic "Subscription Quote" label when set.
+  quoteProductName  String     @default("")
   quoteNumber       Int?       @unique
   quoteIssuedAt     DateTime?
   paymentTerms      String     @default("Net 30 from invoice date")
