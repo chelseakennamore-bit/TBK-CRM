@@ -24,7 +24,28 @@ export async function createCompany(formData: FormData) {
   if (!name) return;
   const website = String(formData.get("website") || "").trim();
   const notes = String(formData.get("notes") || "").trim();
+  const industry = String(formData.get("industry") || "").trim();
+  const companySize = String(formData.get("companySize") || "").trim();
+  const icpTier = String(formData.get("icpTier") || "").trim();
+  const governmentContractor = formData.get("governmentContractor") === "on";
 
-  await prisma.company.create({ data: { name, website, notes } });
+  await prisma.company.create({
+    data: { name, website, notes, industry, companySize, icpTier, governmentContractor },
+  });
+  revalidatePath("/companies");
+}
+
+export async function updateCompanyDetails(
+  companyId: string,
+  data: {
+    website?: string;
+    notes?: string;
+    industry?: string;
+    companySize?: string;
+    icpTier?: string;
+    governmentContractor?: boolean;
+  }
+) {
+  await prisma.company.update({ where: { id: companyId }, data });
   revalidatePath("/companies");
 }

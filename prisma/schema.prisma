@@ -41,14 +41,19 @@ model Setting {
 // and reports) -- companyId is a best-effort link set automatically
 // (find-or-create by name) whenever one of those records is created.
 model Company {
-  id        String    @id @default(cuid())
-  name      String
-  website   String    @default("")
-  notes     String    @default("")
-  contacts  Contact[]
-  deals     Deal[]
-  invoices  Invoice[]
-  createdAt DateTime  @default(now())
+  id                   String    @id @default(cuid())
+  name                 String
+  website              String    @default("")
+  notes                String    @default("")
+  // Optional, progressive-disclosure detail -- not shown until set.
+  industry             String    @default("")
+  companySize          String    @default("")
+  governmentContractor Boolean   @default(false)
+  icpTier              String    @default("")
+  contacts             Contact[]
+  deals                Deal[]
+  invoices             Invoice[]
+  createdAt            DateTime  @default(now())
 }
 
 model Contact {
@@ -81,6 +86,7 @@ model Deal {
   nextStepDueAt     DateTime?
   revenueStream     String     @default("")
   closedLostReason  String     @default("")
+  probability       Int        @default(0)
   tasks             Task[]
   activities        Activity[]
   invoices          Invoice[]
@@ -113,16 +119,19 @@ model Activity {
 }
 
 model Project {
-  id        String    @id @default(cuid())
-  name      String
-  client    String
-  status    String    @default("Not started") // Not started | In progress | Blocked | Complete
-  progress  Int       @default(0)
-  dueDate   DateTime?
-  dealId    String?
-  deal      Deal?     @relation(fields: [dealId], references: [id])
-  subtasks  Subtask[]
-  createdAt DateTime  @default(now())
+  id              String    @id @default(cuid())
+  name            String
+  client          String
+  status          String    @default("Not started") // Not started | In progress | Blocked | Complete
+  progress        Int       @default(0)
+  dueDate         DateTime?
+  health          String    @default("Green") // Green | Yellow | Red
+  nextDeliverable String    @default("")
+  nextMeetingAt   DateTime?
+  dealId          String?
+  deal            Deal?     @relation(fields: [dealId], references: [id])
+  subtasks        Subtask[]
+  createdAt       DateTime  @default(now())
 }
 
 model Subtask {

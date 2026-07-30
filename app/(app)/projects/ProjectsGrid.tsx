@@ -1,10 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { addSubtask, toggleSubtask, updateProjectStatus } from "@/app/actions/projects";
-import { Button, Card, Input, Select, Tag } from "@/components/ui";
-import { fmtDate } from "@/lib/format";
-import { PROJECT_STATUSES } from "@/lib/constants";
+import {
+  addSubtask,
+  toggleSubtask,
+  updateProjectDetails,
+  updateProjectStatus,
+} from "@/app/actions/projects";
+import { Button, Card, Field, Input, Select, Tag } from "@/components/ui";
+import { fmtDate, toDateInputValue } from "@/lib/format";
+import { PROJECT_HEALTH, PROJECT_STATUSES } from "@/lib/constants";
 
 type Subtask = {
   id: string;
@@ -19,6 +24,9 @@ type Project = {
   status: string;
   progress: number;
   dueDate: string | null;
+  health: string;
+  nextDeliverable: string;
+  nextMeetingAt: string | null;
   subtasks: Subtask[];
 };
 
@@ -27,6 +35,12 @@ const STATUS_TAG: Record<string, "neutral" | "accent" | "accent-2" | "outline"> 
   "In progress": "accent",
   Blocked: "accent-2",
   Complete: "outline",
+};
+
+const HEALTH_DOT: Record<string, string> = {
+  Green: "bg-emerald-500",
+  Yellow: "bg-amber-500",
+  Red: "bg-rose-500",
 };
 
 export function ProjectsGrid({ initialProjects }: { initialProjects: Project[] }) {
@@ -47,12 +61,18 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: Project[] }
         return (
           <Card key={project.id} className="flex flex-col gap-3">
             <div className="flex items-start justify-between">
-              <div>
-                <div className="font-semibold text-zinc-900 dark:text-zinc-50">
-                  {project.name}
-                </div>
-                <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {project.client}
+              <div className="flex items-start gap-2">
+                <span
+                  title={`Health: ${project.health}`}
+                  className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${HEALTH_DOT[project.health] ?? "bg-zinc-300"}`}
+                />
+                <div>
+                  <div className="font-semibold text-zinc-900 dark:text-zinc-50">
+                    {project.name}
+                  </div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {project.client}
+                  </div>
                 </div>
               </div>
               <Tag variant={STATUS_TAG[project.status] ?? "neutral"}>
@@ -75,6 +95,31 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: Project[] }
                 </div>
                 <div>Due {fmtDate(project.dueDate)}</div>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Next deliverable">
+                <Input
+                  value={project.nextDeliverable}
+                  placeholder="e.g. draft report"
+                  onChange={(e) => patchProject(project.id, { nextDeliverable: e.target.value })}
+                  onBlur={() =>
+                    updateProjectDetails(project.id, { nextDeliverable: project.nextDeliverable })
+                  }
+                />
+              </Field>
+              <Field label="Next meeting">
+                <Input
+                  type="date"
+                  value={toDateInputValue(project.nextMeetingAt)}
+                  onChange={(e) => {
+                    patchProject(project.id, {
+                      nextMeetingAt: e.target.value ? new Date(e.target.value).toISOString() : null,
+                    });
+                    updateProjectDetails(project.id, { nextMeetingAt: e.target.value });
+                  }}
+                />
+              </Field>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -119,20 +164,36 @@ export function ProjectsGrid({ initialProjects }: { initialProjects: Project[] }
               }
             />
 
-            <Select
-              value={project.status}
-              onChange={(e) => {
-                const status = e.target.value;
-                patchProject(project.id, { status });
-                updateProjectStatus(project.id, status);
-              }}
-            >
-              {PROJECT_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </Select>
+            <div className="grid grid-cols-2 gap-2">
+              <Select
+                value={project.status}
+                onChange={(e) => {
+                  const status = e.target.value;
+                  patchProject(project.id, { status });
+                  updateProjectStatus(project.id, status);
+                }}
+              >
+                {PROJECT_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+              <Select
+                value={project.health}
+                onChange={(e) => {
+                  const health = e.target.value;
+                  patchProject(project.id, { health });
+                  updateProjectDetails(project.id, { health });
+                }}
+              >
+                {PROJECT_HEALTH.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </Card>
         );
       })}

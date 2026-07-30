@@ -1,20 +1,35 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PageHeader, StatCard, Tag } from "@/components/ui";
-import { money, daysAgo } from "@/lib/format";
+import { money, daysAgo, fmtDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 const STALE_DAYS = 14;
+const UPCOMING_MEETING_DAYS = 7;
 
 export default async function DashboardPage() {
   const now = new Date();
   const staleCutoff = new Date(now.getTime() - STALE_DAYS * 86400000);
+  const meetingHorizon = new Date(now.getTime() + UPCOMING_MEETING_DAYS * 86400000);
 
-  const [deals, newLeads, followUpContacts, followUpLeads, openDealsForAttention] =
-    await Promise.all([
+  const [
+    deals,
+    newLeads,
+    followUpContacts,
+    followUpLeads,
+    openDealsForAttention,
+    activeProjects,
+  ] = await Promise.all([
       prisma.deal.findMany({
-        select: { id: true, title: true, company: true, value: true, stage: true },
+        select: {
+          id: true,
+          title: true,
+          company: true,
+          value: true,
+          stage: true,
+          probability: true,
+        },
       }),
       prisma.lead.findMany({
         where: { status: "new" },
@@ -41,12 +56,26 @@ export default async function DashboardPage() {
           updatedAt: true,
         },
       }),
+      prisma.project.findMany({
+        where: { status: { not: "Complete" } },
+        select: {
+          id: true,
+          name: true,
+          client: true,
+          health: true,
+          nextMeetingAt: true,
+        },
+      }),
     ]);
 
   const openDeals = deals.filter((d) => d.stage !== "Won" && d.stage !== "Lost");
   const wonDeals = deals.filter((d) => d.stage === "Won");
   const lostDeals = deals.filter((d) => d.stage === "Lost");
   const pipelineValue = openDeals.reduce((a, d) => a + d.value, 0);
+  const weightedPipelineValue = openDeals.reduce(
+    (a, d) => a + (d.value * d.probability) / 100,
+    0
+  );
   const winRate =
     wonDeals.length + lostDeals.length === 0
       ? 0
@@ -89,15 +118,27 @@ export default async function DashboardPage() {
     .filter((d): d is NonNullable<typeof d> => d !== null)
     .slice(0, 5);
 
+  const projectsNeedingAttention = activeProjects
+    .map((p) => {
+      const upcomingMeeting = p.nextMeetingAt && p.nextMeetingAt.getTime() <= meetingHorizon.getTime();
+      let reason: string | null = null;
+      if (p.health === "Red") reason = "Off track";
+      else if (p.health === "Yellow") reason = "At risk";
+      else if (upcomingMeeting) reason = `Meeting ${fmtDate(p.nextMeetingAt)}`;
+      return reason ? { ...p, reason } : null;
+    })
+    .filter((p): p is NonNullable<typeof p> => p !== null)
+    .slice(0, 5);
+
   return (
     <div>
       <PageHeader title="Dashboard" subtitle="What needs your attention today" />
 
       <div className="mb-8 flex flex-wrap gap-8">
         <StatCard
-          label="Open pipeline value"
-          value={money(pipelineValue)}
-          hint={`${openDeals.length} open deals`}
+          label="Weighted pipeline"
+          value={money(weightedPipelineValue)}
+          hint={`${money(pipelineValue)} raw · ${openDeals.length} open deals`}
         />
         <StatCard
           label="Open deals"
@@ -184,6 +225,32 @@ export default async function DashboardPage() {
                 </div>
               </div>
               <Tag variant="accent-2">{deal.reason}</Tag>
+            </Link>
+          ))}
+        </AttentionPanel>
+
+        <AttentionPanel
+          title="Projects needing attention"
+          emptyLabel="All active projects are on track."
+          className="col-span-2"
+        >
+          {projectsNeedingAttention.map((project) => (
+            <Link
+              key={project.id}
+              href="/projects"
+              className="flex items-center justify-between"
+            >
+              <div>
+                <div className="font-medium text-zinc-900 dark:text-zinc-50">
+                  {project.name}
+                </div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {project.client}
+                </div>
+              </div>
+              <Tag variant={project.health === "Green" ? "neutral" : "accent-2"}>
+                {project.reason}
+              </Tag>
             </Link>
           ))}
         </AttentionPanel>

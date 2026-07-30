@@ -1,17 +1,38 @@
 import { prisma } from "@/lib/prisma";
 import { PageHeader, Table, Th, Td } from "@/components/ui";
 import { money } from "@/lib/format";
+import { STAGES } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
-  const [leads, wonDeals] = await Promise.all([
+  const [leads, wonDeals, allDeals] = await Promise.all([
     prisma.lead.findMany({ select: { source: true, status: true } }),
     prisma.deal.findMany({
       where: { stage: "Won", closeDate: { not: null } },
-      select: { value: true, closeDate: true },
+      select: { value: true, closeDate: true, revenueStream: true },
     }),
+    prisma.deal.findMany({ select: { stage: true, value: true, probability: true } }),
   ]);
+
+  const stagePipeline = STAGES.map((stage) => {
+    const stageDeals = allDeals.filter((d) => d.stage === stage);
+    const value = stageDeals.reduce((a, d) => a + d.value, 0);
+    const weighted = stageDeals.reduce((a, d) => a + (d.value * d.probability) / 100, 0);
+    return { stage, count: stageDeals.length, value, weighted };
+  });
+  const totalWeighted = stagePipeline
+    .filter((s) => s.stage !== "Won" && s.stage !== "Lost")
+    .reduce((a, s) => a + s.weighted, 0);
+
+  const streamGroups = new Map<string, number>();
+  for (const deal of wonDeals) {
+    const key = deal.revenueStream || "Unspecified";
+    streamGroups.set(key, (streamGroups.get(key) ?? 0) + deal.value);
+  }
+  const revenueByStream = Array.from(streamGroups.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([stream, value]) => ({ stream, value }));
 
   const sourceGroups = new Map<string, { count: number; converted: number }>();
   for (const lead of leads) {
@@ -50,6 +71,45 @@ export default async function ReportsPage() {
   return (
     <div>
       <PageHeader title="Reports" subtitle="Lead sources and revenue trends" />
+
+      <div className="mb-8">
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+            Pipeline by stage
+          </h2>
+          <div className="text-sm text-zinc-500 dark:text-zinc-400">
+            Weighted total:{" "}
+            <span className="font-semibold text-zinc-900 dark:text-zinc-50">
+              {money(totalWeighted)}
+            </span>
+          </div>
+        </div>
+        <Table>
+          <thead>
+            <tr>
+              <Th>Stage</Th>
+              <Th>Deals</Th>
+              <Th>Value</Th>
+              <Th>Weighted</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {stagePipeline.map((row) => (
+              <tr key={row.stage}>
+                <Td className="font-semibold text-zinc-900 dark:text-zinc-50">
+                  {row.stage}
+                </Td>
+                <Td>{row.count}</Td>
+                <Td>{money(row.value)}</Td>
+                <Td className="text-zinc-500 dark:text-zinc-400">
+                  {money(row.weighted)}
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </div>
+
       <div className="grid grid-cols-2 gap-8">
         <div>
           <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
@@ -114,6 +174,39 @@ export default async function ReportsPage() {
             {monthlyRevenue.length === 0 && (
               <div className="text-sm text-zinc-400">No won deals yet.</div>
             )}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+            Revenue by stream (won deals)
+          </h2>
+          <div className="mt-3">
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Stream</Th>
+                  <Th>Revenue</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {revenueByStream.map((row) => (
+                  <tr key={row.stream}>
+                    <Td className="font-semibold text-zinc-900 dark:text-zinc-50">
+                      {row.stream}
+                    </Td>
+                    <Td>{money(row.value)}</Td>
+                  </tr>
+                ))}
+                {revenueByStream.length === 0 && (
+                  <tr>
+                    <Td colSpan={2} className="text-center text-zinc-400">
+                      No won deals yet.
+                    </Td>
+                  </tr>
+                )}
+              </tbody>
+            </Table>
           </div>
         </div>
       </div>

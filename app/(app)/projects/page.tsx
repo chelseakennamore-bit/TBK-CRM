@@ -18,6 +18,9 @@ export default async function ProjectsPage() {
     status: p.status,
     progress: p.progress,
     dueDate: p.dueDate ? p.dueDate.toISOString() : null,
+    health: p.health,
+    nextDeliverable: p.nextDeliverable,
+    nextMeetingAt: p.nextMeetingAt ? p.nextMeetingAt.toISOString() : null,
     subtasks: p.subtasks.map((t) => ({
       id: t.id,
       text: t.text,

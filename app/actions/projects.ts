@@ -23,6 +23,24 @@ export async function updateProjectStatus(projectId: string, status: string) {
   revalidatePath("/projects");
 }
 
+export async function updateProjectDetails(
+  projectId: string,
+  data: { health?: string; nextDeliverable?: string; nextMeetingAt?: string }
+) {
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      ...(data.health !== undefined ? { health: data.health } : {}),
+      ...(data.nextDeliverable !== undefined ? { nextDeliverable: data.nextDeliverable } : {}),
+      ...(data.nextMeetingAt !== undefined
+        ? { nextMeetingAt: data.nextMeetingAt ? new Date(data.nextMeetingAt) : null }
+        : {}),
+    },
+  });
+  revalidatePath("/projects");
+  revalidatePath("/");
+}
+
 export async function addSubtask(
   projectId: string,
   text: string,
