@@ -43,7 +43,9 @@ See `.env.example`:
 - `DATABASE_URL` — Postgres connection string
 - `AUTH_SECRET` — random secret for NextAuth session signing (`openssl rand -base64 32`)
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` — credentials for the single seeded user account
-- `GOOGLE_SHEETS_SPREADSHEET_ID` / `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` — see `SHEETS-SETUP.md`
+- `GOOGLE_SHEETS_SPREADSHEET_ID` / `GOOGLE_SERVICE_ACCOUNT_EMAIL` / `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64` — see `SHEETS-SETUP.md`
+- `CRON_SECRET` — authorizes Vercel's daily scheduled sync (see `SHEETS-SETUP.md`); not needed for local dev
+- `LEAD_WEBHOOK_URL` — optional; POSTs new leads to this URL (Zapier/Make/n8n/etc.) as they're created. Leave unset to disable.
 
 ## Scripts
 
@@ -57,6 +59,7 @@ See `.env.example`:
 ## Notes on scope
 
 - Auth is a single hardcoded admin account (no signup flow), matching the solo-user context.
-- "Sync now" pulls from the "Leads" and "Contact" tabs of the real Google Sheet (see `SHEETS-SETUP.md`); it's manual/on-demand rather than scheduled.
+- The Google Sheet sync pulls from the "Leads" and "Contact" tabs of the real Google Sheet (see `SHEETS-SETUP.md`); it runs automatically once a day via Vercel Cron and can also be triggered manually with "Sync now".
+- Leads, Deals, Contacts, and Invoices each have an "Export CSV" button for a spreadsheet-friendly download of the current data.
 - There's no way to delete a lead from the UI yet — sheet rows that aren't real inquiries (test data, notification noise, etc.) will still get imported.
 - CSV import is a naive comma-split per line, no header-row detection, matching the original design intent — a production version should add quoted-field parsing and duplicate detection.

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader } from "@/components/ui";
 import { AddContactModal } from "@/components/modals/AddContactModal";
 import { ContactsTable } from "./ContactsTable";
 
@@ -23,7 +23,12 @@ export default async function ContactsPage() {
       <PageHeader
         title="Contacts"
         subtitle="People and companies you work with"
-        action={<AddContactModal />}
+        action={
+          <div className="flex gap-2">
+            <LinkButton href="/api/export/contacts">Export CSV</LinkButton>
+            <AddContactModal />
+          </div>
+        }
       />
       <ContactsTable contacts={contacts} />
     </div>

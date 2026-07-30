@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PageHeader, StatCard, Table, Th, Td } from "@/components/ui";
+import { LinkButton, PageHeader, StatCard, Table, Th, Td } from "@/components/ui";
 import { AddInvoiceModal } from "@/components/modals/AddInvoiceModal";
 import { InvoiceStatusSelect } from "./InvoiceStatusSelect";
 import { fmtDate, money } from "@/lib/format";
@@ -38,7 +38,12 @@ export default async function InvoicesPage() {
       <PageHeader
         title="Invoices"
         subtitle="Track amounts owed and payment status"
-        action={<AddInvoiceModal wonDeals={wonDeals} />}
+        action={
+          <div className="flex gap-2">
+            <LinkButton href="/api/export/invoices">Export CSV</LinkButton>
+            <AddInvoiceModal wonDeals={wonDeals} />
+          </div>
+        }
       />
       <div className="mb-6 flex flex-wrap gap-8">
         <StatCard
