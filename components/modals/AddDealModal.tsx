@@ -6,11 +6,23 @@ import { Button, Field, Input, Select } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { REVENUE_STREAMS } from "@/lib/constants";
 
-export function AddDealModal({ companyNames = [] }: { companyNames?: string[] }) {
+type ContactOption = { id: string; name: string; company: string };
+
+export function AddDealModal({
+  companyNames = [],
+  contacts = [],
+}: {
+  companyNames?: string[];
+  contacts?: ContactOption[];
+}) {
   const [open, setOpen] = useState(false);
+  const [contactId, setContactId] = useState("");
+  const [contactName, setContactName] = useState("");
   const [, formAction, pending] = useActionState(async (_prev: null, formData: FormData) => {
     await createDeal(formData);
     setOpen(false);
+    setContactId("");
+    setContactName("");
     return null;
   }, null);
 
@@ -46,8 +58,34 @@ export function AddDealModal({ companyNames = [] }: { companyNames?: string[] })
                 ))}
               </datalist>
             </Field>
+            <Field label="Link to an existing contact (optional)">
+              <Select
+                value={contactId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setContactId(id);
+                  const match = contacts.find((c) => c.id === id);
+                  if (match) setContactName(match.name);
+                }}
+              >
+                <option value="">None</option>
+                {contacts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.company})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <input type="hidden" name="contactId" value={contactId} />
             <Field label="Contact name">
-              <Input name="contactName" />
+              <Input
+                name="contactName"
+                value={contactName}
+                onChange={(e) => {
+                  setContactName(e.target.value);
+                  setContactId("");
+                }}
+              />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Value ($)">

@@ -11,7 +11,7 @@ export default async function DealsPage({
   searchParams: Promise<{ deal?: string }>;
 }) {
   const { deal } = await searchParams;
-  const [deals, companies] = await Promise.all([
+  const [deals, companies, contacts] = await Promise.all([
     prisma.deal.findMany({
       orderBy: { createdAt: "desc" },
       select: {
@@ -26,6 +26,10 @@ export default async function DealsPage({
       },
     }),
     prisma.company.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
+    prisma.contact.findMany({
+      select: { id: true, name: true, company: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   return (
@@ -36,7 +40,7 @@ export default async function DealsPage({
         action={
           <div className="flex gap-2">
             <LinkButton href="/api/export/deals">Export CSV</LinkButton>
-            <AddDealModal companyNames={companies.map((c) => c.name)} />
+            <AddDealModal companyNames={companies.map((c) => c.name)} contacts={contacts} />
           </div>
         }
       />
@@ -48,6 +52,8 @@ export default async function DealsPage({
           nextStepDueAt: d.nextStepDueAt ? d.nextStepDueAt.toISOString() : null,
         }))}
         initialSelectedId={deal}
+        companyNames={companies.map((c) => c.name)}
+        contacts={contacts}
       />
     </div>
   );
