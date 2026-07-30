@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader } from "@/components/ui";
 import { AddDealModal } from "@/components/modals/AddDealModal";
 import { DealsBoard } from "./DealsBoard";
 
@@ -28,7 +28,12 @@ export default async function DealsPage({
       <PageHeader
         title="Deals"
         subtitle="Drag cards across stages to update status"
-        action={<AddDealModal />}
+        action={
+          <div className="flex gap-2">
+            <LinkButton href="/api/export/deals">Export CSV</LinkButton>
+            <AddDealModal />
+          </div>
+        }
       />
       <DealsBoard
         key={deals.map((d) => d.id).join(",")}

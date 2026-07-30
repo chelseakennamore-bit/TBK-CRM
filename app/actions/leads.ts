@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { fetchSheetTab, rowsToObjects } from "@/lib/googleSheets";
+import { notifyNewLead } from "@/lib/webhooks";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -17,10 +18,11 @@ export async function createLead(formData: FormData) {
   const email = String(formData.get("email") || "").trim();
   const message = String(formData.get("message") || "").trim() || "—";
 
-  await prisma.lead.create({
+  const lead = await prisma.lead.create({
     data: { name, company, email, message, source: "Manual entry", status: "new" },
   });
   revalidateLeadViews();
+  await notifyNewLead(lead);
 }
 
 export async function importLeadsCsv(formData: FormData) {
@@ -45,7 +47,12 @@ export async function importLeadsCsv(formData: FormData) {
   });
 
   if (leads.length > 0) {
-    await prisma.lead.createMany({ data: leads });
+    const created = await prisma.lead.createManyAndReturn({ data: leads });
+    revalidateLeadViews();
+    for (const lead of created) {
+      await notifyNewLead(lead);
+    }
+    return;
   }
   revalidateLeadViews();
 }
@@ -136,9 +143,9 @@ export async function syncNow(): Promise<{ importedCount: number }> {
     }
   }
 
-  const result = candidates.length
-    ? await prisma.lead.createMany({ data: candidates, skipDuplicates: true })
-    : { count: 0 };
+  const created = candidates.length
+    ? await prisma.lead.createManyAndReturn({ data: candidates, skipDuplicates: true })
+    : [];
 
   const now = new Date().toISOString();
   await prisma.setting.upsert({
@@ -148,7 +155,11 @@ export async function syncNow(): Promise<{ importedCount: number }> {
   });
   revalidateLeadViews();
 
-  return { importedCount: result.count };
+  for (const lead of created) {
+    await notifyNewLead(lead);
+  }
+
+  return { importedCount: created.length };
 }
 
 export async function convertLead(leadId: string) {

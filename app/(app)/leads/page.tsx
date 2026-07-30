@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PageHeader, Table, Th, Td, Tag } from "@/components/ui";
+import { LinkButton, PageHeader, Table, Th, Td, Tag } from "@/components/ui";
 import { AddLeadModal } from "@/components/modals/AddLeadModal";
 import { ImportCsvModal } from "@/components/modals/ImportCsvModal";
 import { SyncNowButton } from "./SyncNowButton";
@@ -33,6 +33,7 @@ export default async function LeadsPage() {
           Last synced {lastSyncedLabel}
         </div>
         <div className="ml-auto flex gap-2">
+          <LinkButton href="/api/export/leads">Export CSV</LinkButton>
           <ImportCsvModal />
           <SyncNowButton />
         </div>

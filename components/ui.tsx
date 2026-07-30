@@ -62,6 +62,13 @@ export function Tag({
   );
 }
 
+const BUTTON_VARIANTS: Record<string, string> = {
+  primary: "bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-indigo-300",
+  secondary:
+    "bg-white text-zinc-700 border border-zinc-300 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-200 dark:border-zinc-700 dark:hover:bg-zinc-800",
+  danger: "bg-red-600 text-white hover:bg-red-500",
+};
+
 export function Button({
   variant = "secondary",
   className,
@@ -69,18 +76,30 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "danger";
 }) {
-  const variants: Record<string, string> = {
-    primary:
-      "bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-indigo-300",
-    secondary:
-      "bg-white text-zinc-700 border border-zinc-300 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-200 dark:border-zinc-700 dark:hover:bg-zinc-800",
-    danger: "bg-red-600 text-white hover:bg-red-500",
-  };
   return (
     <button
       className={cx(
         "inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
-        variants[variant],
+        BUTTON_VARIANTS[variant],
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+export function LinkButton({
+  variant = "secondary",
+  className,
+  ...props
+}: React.AnchorHTMLAttributes<HTMLAnchorElement> & {
+  variant?: "primary" | "secondary" | "danger";
+}) {
+  return (
+    <a
+      className={cx(
+        "inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+        BUTTON_VARIANTS[variant],
         className
       )}
       {...props}

@@ -1,6 +1,6 @@
 # Connecting the Leads sheet
 
-The "Sync now" button on the Leads page pulls new rows in from your **"TBK Contacts and Leads"** Google Sheet (both the "Leads" and "Contact" tabs) and creates a CRM lead for each one, skipping anything it's already imported. This needs a Google service account with read-only access to just that sheet — about 10 minutes, one-time setup.
+The "Sync now" button on the Leads page pulls new rows in from your **"TBK Contacts and Leads"** Google Sheet (both the "Leads" and "Contact" tabs) and creates a CRM lead for each one, skipping anything it's already imported. The same sync also runs automatically once a day (see "How it works" below), so you don't have to remember to click it. This needs a Google service account with read-only access to just that sheet — about 10 minutes, one-time setup.
 
 ## 1. Create a Google Cloud service account
 
@@ -26,6 +26,7 @@ From the same JSON file, you need two fields plus the sheet's ID:
 | `GOOGLE_SHEETS_SPREADSHEET_ID` | The long ID in the sheet's URL: `docs.google.com/spreadsheets/d/`**`1W_Akj80FhfHBSZwIS4M9Pbv5X_862tHDi_lywAoN55I`**`/edit...` |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | The `client_email` field from the JSON |
 | `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64` | The `private_key` field from the JSON, **base64-encoded** — see below |
+| `CRON_SECRET` | Any random string — see "Automatic daily sync" below |
 
 The private key needs to be base64-encoded before pasting it into Vercel. Pasting the raw multi-line key directly into a web form is unreliable — it's very easy for the line breaks inside the key to get lost or collapsed in transit, which silently breaks it (this happened during initial setup). Base64 turns it into one line with no special characters, so there's nothing left for a form field to mangle.
 
@@ -35,13 +36,17 @@ python3 -c "import json,base64; print(base64.b64encode(json.load(open('/path/to/
 ```
 (replace `/path/to/your-key.json` with the actual downloaded file path, e.g. `~/Downloads/tbk-crm-xxxxx.json`). Copy the single line it prints out — that's the value for `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY_B64`.
 
-Add all three in Vercel → your project → **Settings → Environment Variables** (checking Production/Preview/Development like the others), then redeploy.
+Add all four in Vercel → your project → **Settings → Environment Variables** (checking Production/Preview/Development like the others), then redeploy.
 
-For local development, add the same three to your `.env` file.
+For local development, add the same to your `.env` file — `CRON_SECRET` isn't needed locally unless you're testing the `/api/cron/sync-leads` route directly.
+
+### Automatic daily sync
+
+`CRON_SECRET` authorizes Vercel's scheduled cron job (defined in `vercel.json`) to trigger the sync once a day without a browser session — Vercel automatically sends it as a `Bearer` token when it calls the sync route. Generate any random value for it, e.g. with `openssl rand -hex 24`, and set it once in Vercel; you'll never need to type it in yourself day-to-day. The "Sync now" button still works too, for pulling in a lead immediately instead of waiting for the next scheduled run.
 
 ## How it works
 
 - Both the **Leads** tab (resource/lead-magnet signups) and **Contact** tab (direct inquiries) are pulled in, tagged with different sources so Reports can tell them apart.
-- Each row is matched against the sheet tab + timestamp + email, so re-clicking "Sync now" never creates duplicates — only genuinely new rows since the last sync are imported.
+- Each row is matched against the sheet tab + timestamp + email, so re-running the sync never creates duplicates — only genuinely new rows since the last sync are imported.
 - Column matching is by **header name**, not position, so reordering columns in the sheet is safe. Renaming a header (e.g. `email` → `Email Address`) will break the mapping for that column, though — if you rename headers, let your developer/AI assistant know so the mapping in `app/actions/leads.ts` can be updated to match.
-- This is a manual, on-demand sync (click the button). If you want it to run automatically on a schedule instead, that's a small follow-up (a Vercel Cron Job calling the same sync logic every N minutes) — ask if you want that added.
+- The sync runs automatically once a day via Vercel Cron, and can also be triggered manually anytime with the "Sync now" button.
