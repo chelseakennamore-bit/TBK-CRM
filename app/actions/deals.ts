@@ -110,6 +110,11 @@ export async function updateDealNotes(dealId: string, notes: string) {
   revalidatePath("/deals");
 }
 
+export async function updateDealScopeOfWork(dealId: string, scopeOfWork: string) {
+  await prisma.deal.update({ where: { id: dealId }, data: { scopeOfWork } });
+  revalidatePath("/deals");
+}
+
 export async function updateDealNextStep(
   dealId: string,
   nextStep: string,

@@ -14,6 +14,7 @@ import {
   updateDealNotes,
   updateDealProbability,
   updateDealRevenueStream,
+  updateDealScopeOfWork,
   updateDealStage,
   updateDealTitle,
   updateDealValue,
@@ -42,6 +43,7 @@ type DealDetail = DealSummary & {
   contactName: string;
   contactId: string | null;
   notes: string;
+  scopeOfWork: string;
   revenueStream: string;
   closedLostReason: string;
   probability: number;
@@ -256,6 +258,9 @@ export function DealsBoard({
                 updateDealCloseDate(loadedDetail.id, closeDate);
               }}
               onNotesCommit={(notes) => updateDealNotes(loadedDetail.id, notes)}
+              onScopeOfWorkCommit={(scopeOfWork) =>
+                updateDealScopeOfWork(loadedDetail.id, scopeOfWork)
+              }
               onStageChange={(stage) => {
                 patchSummary(loadedDetail.id, { stage });
                 updateDealStage(loadedDetail.id, stage).then(refreshDetail);
@@ -319,6 +324,7 @@ function DealDrawerBody({
   onValueCommit,
   onCloseDateCommit,
   onNotesCommit,
+  onScopeOfWorkCommit,
   onStageChange,
   onNextStepCommit,
   onRevenueStreamCommit,
@@ -337,6 +343,7 @@ function DealDrawerBody({
   onValueCommit: (value: number) => void;
   onCloseDateCommit: (closeDate: string) => void;
   onNotesCommit: (notes: string) => void;
+  onScopeOfWorkCommit: (scopeOfWork: string) => void;
   onStageChange: (stage: string) => void;
   onNextStepCommit: (nextStep: string, nextStepDueAt: string) => void;
   onRevenueStreamCommit: (revenueStream: string) => void;
@@ -355,6 +362,7 @@ function DealDrawerBody({
   const [value, setValue] = useState(String(detail.value));
   const [closeDate, setCloseDate] = useState(toDateInputValue(detail.closeDate));
   const [notes, setNotes] = useState(detail.notes);
+  const [scopeOfWork, setScopeOfWork] = useState(detail.scopeOfWork);
   const [stage, setStage] = useState(detail.stage);
   const [nextStep, setNextStep] = useState(detail.nextStep);
   const [nextStepDueAt, setNextStepDueAt] = useState(toDateInputValue(detail.nextStepDueAt));
@@ -538,7 +546,17 @@ function DealDrawerBody({
         </Field>
       </div>
 
-      <Field label="Notes">
+      <Field label="Scope of work (shown on the quote)">
+        <Textarea
+          rows={4}
+          placeholder="What this engagement covers, in customer-facing language"
+          value={scopeOfWork}
+          onChange={(e) => setScopeOfWork(e.target.value)}
+          onBlur={() => onScopeOfWorkCommit(scopeOfWork)}
+        />
+      </Field>
+
+      <Field label="Notes (internal only)">
         <Textarea
           rows={3}
           value={notes}

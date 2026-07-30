@@ -111,7 +111,7 @@ export default async function DealQuotePage({
             Scope of work
           </div>
           <p className="text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
-            {deal.notes || "—"}
+            {deal.scopeOfWork || "—"}
           </p>
         </div>
 
