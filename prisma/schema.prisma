@@ -85,6 +85,9 @@ model Deal {
   stage             String     @default("Lead") // Lead | Qualified | Proposal | Negotiation | Won | Lost
   closeDate         DateTime?
   notes             String     @default("")
+  // Customer-facing description of what the engagement covers -- shown
+  // on the printable quote. Kept separate from internal notes above.
+  scopeOfWork       String     @default("")
   nextStep          String     @default("")
   nextStepDueAt     DateTime?
   revenueStream     String     @default("")
