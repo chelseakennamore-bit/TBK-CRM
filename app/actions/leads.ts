@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { fetchSheetTab, rowsToObjects } from "@/lib/googleSheets";
 import { notifyNewLead } from "@/lib/webhooks";
+import { findOrCreateCompanyId } from "@/app/actions/companies";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -166,6 +167,8 @@ export async function convertLead(leadId: string) {
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) return;
 
+  const companyId = await findOrCreateCompanyId(lead.company);
+
   await prisma.$transaction([
     prisma.lead.update({
       where: { id: leadId },
@@ -175,6 +178,7 @@ export async function convertLead(leadId: string) {
       data: {
         title: "New Engagement",
         company: lead.company,
+        companyId,
         contactName: lead.name,
         value: 0,
         stage: "Lead",
@@ -186,5 +190,6 @@ export async function convertLead(leadId: string) {
 
   revalidateLeadViews();
   revalidatePath("/deals");
+  revalidatePath("/companies");
   redirect("/deals");
 }

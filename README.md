@@ -9,6 +9,7 @@ Built with Next.js (App Router, Server Actions), Prisma + Postgres, Tailwind CSS
 - **Dashboard** — pipeline stats, recent leads, top open deals
 - **Leads** — inbound inquiries synced from a Google Sheet, CSV import, convert to deal
 - **Deals** — drag-and-drop kanban pipeline, deal drawer with activity log and follow-up tasks
+- **Companies** — organizations grouping their contacts, deals, and invoices in one place
 - **Projects** — delivery work for won engagements, subtask checklists with auto-computed progress
 - **Contacts** — contact book with an activity/notes log
 - **Invoices** — amounts owed, status tracking, optional link to a won deal
@@ -60,6 +61,7 @@ See `.env.example`:
 
 - Auth is a single hardcoded admin account (no signup flow), matching the solo-user context.
 - The Google Sheet sync pulls from the "Leads" and "Contact" tabs of the real Google Sheet (see `SHEETS-SETUP.md`); it runs automatically once a day via Vercel Cron and can also be triggered manually with "Sync now".
-- Leads, Deals, Contacts, and Invoices each have an "Export CSV" button for a spreadsheet-friendly download of the current data.
+- Leads, Deals, Contacts, Invoices, and Companies each have an "Export CSV" button for a spreadsheet-friendly download of the current data.
+- Contacts, Deals, and Invoices still take a plain company/client name as before -- saving one automatically finds-or-creates a matching Company behind the scenes (case-insensitive) and links it, so the Companies page stays up to date without changing how you fill out those forms. The company field also autocompletes from existing company names to reduce typos creating duplicates.
 - There's no way to delete a lead from the UI yet — sheet rows that aren't real inquiries (test data, notification noise, etc.) will still get imported.
 - CSV import is a naive comma-split per line, no header-row detection, matching the original design intent — a production version should add quoted-field parsing and duplicate detection.

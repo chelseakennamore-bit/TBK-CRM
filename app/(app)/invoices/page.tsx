@@ -7,7 +7,7 @@ import { fmtDate, money } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function InvoicesPage() {
-  const [invoices, wonDeals] = await Promise.all([
+  const [invoices, wonDeals, companies] = await Promise.all([
     prisma.invoice.findMany({
       orderBy: { createdAt: "desc" },
       include: { deal: { select: { title: true } } },
@@ -17,6 +17,7 @@ export default async function InvoicesPage() {
       select: { id: true, title: true },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.company.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
   ]);
 
   const outstanding = invoices
@@ -41,7 +42,7 @@ export default async function InvoicesPage() {
         action={
           <div className="flex gap-2">
             <LinkButton href="/api/export/invoices">Export CSV</LinkButton>
-            <AddInvoiceModal wonDeals={wonDeals} />
+            <AddInvoiceModal wonDeals={wonDeals} companyNames={companies.map((c) => c.name)} />
           </div>
         }
       />

@@ -34,31 +34,51 @@ model Setting {
   value String
 }
 
+// A company/organization, grouping the contacts, deals, and invoices
+// associated with it. Contact/Deal/Invoice keep their own free-text
+// company/client name (used as-is by CSV import, the webhook payload,
+// and reports) -- companyId is a best-effort link set automatically
+// (find-or-create by name) whenever one of those records is created.
+model Company {
+  id        String    @id @default(cuid())
+  name      String
+  website   String    @default("")
+  notes     String    @default("")
+  contacts  Contact[]
+  deals     Deal[]
+  invoices  Invoice[]
+  createdAt DateTime  @default(now())
+}
+
 model Contact {
-  id         String     @id @default(cuid())
-  name       String
-  company    String
-  email      String
-  phone      String
-  title      String
-  activities Activity[]
-  createdAt  DateTime   @default(now())
+  id            String     @id @default(cuid())
+  name          String
+  company       String
+  companyId     String?
+  companyRecord Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  email         String
+  phone         String
+  title         String
+  activities    Activity[]
+  createdAt     DateTime   @default(now())
 }
 
 model Deal {
-  id          String     @id @default(cuid())
-  title       String
-  company     String
-  contactName String
-  value       Float      @default(0)
-  stage       String     @default("Lead") // Lead | Qualified | Proposal | Negotiation | Won | Lost
-  closeDate   DateTime?
-  notes       String     @default("")
-  tasks       Task[]
-  activities  Activity[]
-  invoices    Invoice[]
-  projects    Project[]
-  createdAt   DateTime   @default(now())
+  id            String     @id @default(cuid())
+  title         String
+  company       String
+  companyId     String?
+  companyRecord Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactName   String
+  value         Float      @default(0)
+  stage         String     @default("Lead") // Lead | Qualified | Proposal | Negotiation | Won | Lost
+  closeDate     DateTime?
+  notes         String     @default("")
+  tasks         Task[]
+  activities    Activity[]
+  invoices      Invoice[]
+  projects      Project[]
+  createdAt     DateTime   @default(now())
 }
 
 model Task {
@@ -104,13 +124,15 @@ model Subtask {
 }
 
 model Invoice {
-  id        String    @id @default(cuid())
-  client    String
-  dealId    String?
-  deal      Deal?     @relation(fields: [dealId], references: [id])
-  amount    Float     @default(0)
-  status    String    @default("Draft") // Draft | Sent | Paid | Overdue
-  issuedAt  DateTime  @default(now())
-  dueDate   DateTime?
-  createdAt DateTime  @default(now())
+  id            String    @id @default(cuid())
+  client        String
+  companyId     String?
+  companyRecord Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  dealId        String?
+  deal          Deal?     @relation(fields: [dealId], references: [id])
+  amount        Float     @default(0)
+  status        String    @default("Draft") // Draft | Sent | Paid | Overdue
+  issuedAt      DateTime  @default(now())
+  dueDate       DateTime?
+  createdAt     DateTime  @default(now())
 }

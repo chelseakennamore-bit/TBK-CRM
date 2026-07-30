@@ -7,8 +7,10 @@ import { Modal } from "@/components/Modal";
 
 export function AddInvoiceModal({
   wonDeals,
+  companyNames = [],
 }: {
   wonDeals: { id: string; title: string }[];
+  companyNames?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [, formAction, pending] = useActionState(async (_prev: null, formData: FormData) => {
@@ -39,7 +41,12 @@ export function AddInvoiceModal({
         >
           <form id="add-invoice-form" action={formAction} className="flex flex-col gap-3">
             <Field label="Client">
-              <Input name="client" required />
+              <Input name="client" list="company-names" required />
+              <datalist id="company-names">
+                {companyNames.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </Field>
             <Field label="Linked deal (optional)">
               <Select name="dealId" defaultValue="">

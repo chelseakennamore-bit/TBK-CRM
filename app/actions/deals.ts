@@ -2,12 +2,14 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { findOrCreateCompanyId } from "@/app/actions/companies";
 
 function revalidateDealViews() {
   revalidatePath("/deals");
   revalidatePath("/");
   revalidatePath("/reports");
   revalidatePath("/invoices");
+  revalidatePath("/companies");
 }
 
 export async function createDeal(formData: FormData) {
@@ -16,11 +18,13 @@ export async function createDeal(formData: FormData) {
   const contactName = String(formData.get("contactName") || "").trim() || "—";
   const value = Number(formData.get("value")) || 0;
   const closeDateRaw = String(formData.get("closeDate") || "");
+  const companyId = await findOrCreateCompanyId(company);
 
   await prisma.deal.create({
     data: {
       title,
       company,
+      companyId,
       contactName,
       value,
       stage: "Lead",

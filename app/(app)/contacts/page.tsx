@@ -6,17 +6,20 @@ import { ContactsTable } from "./ContactsTable";
 export const dynamic = "force-dynamic";
 
 export default async function ContactsPage() {
-  const contacts = await prisma.contact.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      company: true,
-      email: true,
-      phone: true,
-      title: true,
-    },
-  });
+  const [contacts, companies] = await Promise.all([
+    prisma.contact.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        company: true,
+        email: true,
+        phone: true,
+        title: true,
+      },
+    }),
+    prisma.company.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
+  ]);
 
   return (
     <div>
@@ -26,7 +29,7 @@ export default async function ContactsPage() {
         action={
           <div className="flex gap-2">
             <LinkButton href="/api/export/contacts">Export CSV</LinkButton>
-            <AddContactModal />
+            <AddContactModal companyNames={companies.map((c) => c.name)} />
           </div>
         }
       />
