@@ -17,6 +17,7 @@ export async function GET(
     include: {
       tasks: { orderBy: { order: "asc" } },
       activities: { orderBy: { ts: "desc" } },
+      lineItems: { orderBy: { order: "asc" } },
     },
   });
 

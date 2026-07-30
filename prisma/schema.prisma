@@ -93,12 +93,39 @@ model Deal {
   revenueStream     String     @default("")
   closedLostReason  String     @default("")
   probability       Int        @default(0)
+  // Quote document settings. quoteType picks the layout (service:
+  // Deliverable/Type/Amount vs subscription: Item/Seats/Billing/Unit
+  // Price/Total). quoteNumber and quoteIssuedAt are assigned once, the
+  // first time this deal's quote is viewed, so reprints stay stable.
+  quoteType         String     @default("service") // service | subscription
+  quoteNumber       Int?       @unique
+  quoteIssuedAt     DateTime?
+  paymentTerms      String     @default("Net 30 from invoice date")
   tasks             Task[]
   activities        Activity[]
   invoices          Invoice[]
   projects          Project[]
+  lineItems         QuoteLineItem[]
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
+}
+
+// A single row on a deal's quote (e.g. a deliverable or a subscription
+// item). Deals with none get one synthesized on the fly from title/
+// value at render time, so existing deals still produce a usable quote.
+model QuoteLineItem {
+  id          String  @id @default(cuid())
+  dealId      String
+  deal        Deal    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  description String  // "Deliverable" (service) or "Item" (subscription)
+  // "Type" (service, e.g. "Fixed Fee Project") or "Billing" (subscription,
+  // e.g. "Annual" / "One Time") -- just display text, label depends on
+  // the deal's quoteType.
+  detail      String  @default("")
+  seats       Int?    // subscription only; blank/omitted for service rows
+  unitPrice   Float?  // subscription only; blank/omitted for service rows
+  amount      Float   @default(0)
+  order       Int     @default(0)
 }
 
 model Task {

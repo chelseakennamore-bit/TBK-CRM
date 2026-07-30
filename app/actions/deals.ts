@@ -145,6 +145,75 @@ export async function updateDealClosedLostReason(dealId: string, reason: string)
   revalidatePath("/deals");
 }
 
+export async function updateDealQuoteType(dealId: string, quoteType: string) {
+  await prisma.deal.update({ where: { id: dealId }, data: { quoteType } });
+  revalidatePath("/deals");
+}
+
+export async function updateDealPaymentTerms(dealId: string, paymentTerms: string) {
+  await prisma.deal.update({
+    where: { id: dealId },
+    data: { paymentTerms: paymentTerms.trim() || "Net 30 from invoice date" },
+  });
+  revalidatePath("/deals");
+}
+
+// Assigns a permanent, sequential quote number and issue date the first
+// time a deal's quote is viewed, so reprints stay stable. A no-op if
+// already assigned.
+export async function ensureQuoteIssued(dealId: string) {
+  return prisma.$transaction(async (tx) => {
+    const deal = await tx.deal.findUnique({
+      where: { id: dealId },
+      select: { quoteNumber: true, quoteIssuedAt: true },
+    });
+    if (!deal || deal.quoteNumber !== null) return deal;
+
+    const last = await tx.deal.findFirst({
+      where: { quoteNumber: { not: null } },
+      orderBy: { quoteNumber: "desc" },
+      select: { quoteNumber: true },
+    });
+    const quoteNumber = (last?.quoteNumber ?? 0) + 1;
+    return tx.deal.update({
+      where: { id: dealId },
+      data: { quoteNumber, quoteIssuedAt: new Date() },
+      select: { quoteNumber: true, quoteIssuedAt: true },
+    });
+  });
+}
+
+export async function addQuoteLineItem(
+  dealId: string,
+  data: {
+    description: string;
+    detail: string;
+    seats: number | null;
+    unitPrice: number | null;
+    amount: number;
+  }
+) {
+  const description = data.description.trim();
+  if (!description) return null;
+  const item = await prisma.quoteLineItem.create({
+    data: {
+      dealId,
+      description,
+      detail: data.detail.trim(),
+      seats: data.seats,
+      unitPrice: data.unitPrice,
+      amount: data.amount || 0,
+    },
+  });
+  revalidatePath("/deals");
+  return item;
+}
+
+export async function deleteQuoteLineItem(lineItemId: string) {
+  await prisma.quoteLineItem.delete({ where: { id: lineItemId } });
+  revalidatePath("/deals");
+}
+
 export async function addDealNote(dealId: string, text: string) {
   const trimmed = text.trim();
   if (!trimmed) return;
