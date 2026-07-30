@@ -50,6 +50,15 @@ export async function updateDealStage(dealId: string, stage: string) {
   revalidateDealViews();
 }
 
+export async function updateDealTitle(dealId: string, title: string) {
+  const trimmed = title.trim();
+  await prisma.deal.update({
+    where: { id: dealId },
+    data: { title: trimmed || "New Engagement" },
+  });
+  revalidateDealViews();
+}
+
 export async function updateDealProbability(dealId: string, probability: number) {
   const clamped = Math.max(0, Math.min(100, Math.round(probability) || 0));
   await prisma.deal.update({ where: { id: dealId }, data: { probability: clamped } });
