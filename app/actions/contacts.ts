@@ -53,3 +53,38 @@ export async function findContactByEmail(email: string) {
     select: { id: true, name: true, company: true },
   });
 }
+
+// Finds an existing Contact by case-insensitive email match, or creates
+// one. Used when converting a lead so the inquiry becomes a real,
+// linked Contact instead of just free-text on the resulting deal. Leads
+// without an email always create a new contact (nothing reliable to
+// match on).
+export async function findOrCreateContactId(
+  name: string,
+  company: string,
+  email: string,
+  companyId: string | null
+): Promise<string> {
+  const trimmedEmail = email.trim();
+  if (trimmedEmail) {
+    const existing = await prisma.contact.findFirst({
+      where: { email: { equals: trimmedEmail, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+  }
+
+  const created = await prisma.contact.create({
+    data: {
+      name: name.trim() || "New contact",
+      company: company.trim() || "—",
+      companyId,
+      email: trimmedEmail,
+      title: "",
+      phone: "",
+    },
+    select: { id: true },
+  });
+  revalidatePath("/contacts");
+  return created.id;
+}

@@ -16,6 +16,7 @@ import {
   updateDealNotes,
   updateDealPaymentTerms,
   updateDealProbability,
+  updateDealQuoteProductName,
   updateDealQuoteType,
   updateDealRevenueStream,
   updateDealScopeOfWork,
@@ -60,6 +61,7 @@ type DealDetail = DealSummary & {
   closedLostReason: string;
   probability: number;
   quoteType: string;
+  quoteProductName: string;
   paymentTerms: string;
   tasks: Task[];
   activities: Activity[];
@@ -309,6 +311,9 @@ export function DealsBoard({
               onPaymentTermsCommit={(paymentTerms) =>
                 updateDealPaymentTerms(loadedDetail.id, paymentTerms)
               }
+              onQuoteProductNameCommit={(quoteProductName) =>
+                updateDealQuoteProductName(loadedDetail.id, quoteProductName)
+              }
               onAddNote={async (text) => {
                 await addDealNote(loadedDetail.id, text);
                 await refreshDetail();
@@ -356,6 +361,7 @@ function DealDrawerBody({
   onContactCommit,
   onQuoteTypeCommit,
   onPaymentTermsCommit,
+  onQuoteProductNameCommit,
   onAddNote,
   onAddTask,
   onToggleTask,
@@ -377,6 +383,7 @@ function DealDrawerBody({
   onContactCommit: (contactId: string, contactName: string) => void;
   onQuoteTypeCommit: (quoteType: string) => void;
   onPaymentTermsCommit: (paymentTerms: string) => void;
+  onQuoteProductNameCommit: (quoteProductName: string) => void;
   onAddNote: (text: string) => Promise<void>;
   onAddTask: (text: string) => Promise<void>;
   onToggleTask: (taskId: string, done: boolean) => Promise<void>;
@@ -396,6 +403,7 @@ function DealDrawerBody({
   const [closedLostReason, setClosedLostReason] = useState(detail.closedLostReason);
   const [probability, setProbability] = useState(String(detail.probability));
   const [quoteType, setQuoteType] = useState(detail.quoteType);
+  const [quoteProductName, setQuoteProductName] = useState(detail.quoteProductName);
   const [paymentTerms, setPaymentTerms] = useState(detail.paymentTerms);
   const [newNote, setNewNote] = useState("");
   const [newTask, setNewTask] = useState("");
@@ -601,6 +609,19 @@ function DealDrawerBody({
             />
           </Field>
         </div>
+
+        {quoteType === "subscription" && (
+          <div className="mt-3">
+            <Field label="SaaS product name (used as the quote heading)">
+              <Input
+                placeholder="e.g. RevOps Ledger"
+                value={quoteProductName}
+                onChange={(e) => setQuoteProductName(e.target.value)}
+                onBlur={() => onQuoteProductNameCommit(quoteProductName)}
+              />
+            </Field>
+          </div>
+        )}
 
         <QuoteLineItemsEditor
           dealId={detail.id}

@@ -60,7 +60,9 @@ export default async function DealQuotePage({
   const expiresAt = new Date(issuedAt.getTime() + 30 * 86400000);
 
   const isSubscription = deal.quoteType === "subscription";
-  const heading = isSubscription ? "Subscription Quote" : "Service Quote";
+  const heading = isSubscription
+    ? deal.quoteProductName || "Subscription Quote"
+    : "Service Quote";
   const sectionLabel = isSubscription ? "Subscription" : "Engagement";
 
   const companyName = deal.companyRecord?.name || deal.company;
