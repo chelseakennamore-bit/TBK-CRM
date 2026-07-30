@@ -17,6 +17,7 @@ export async function createDeal(formData: FormData) {
   const title = String(formData.get("title") || "").trim() || "New Engagement";
   const company = String(formData.get("company") || "").trim() || "—";
   const contactName = String(formData.get("contactName") || "").trim() || "—";
+  const contactId = String(formData.get("contactId") || "").trim() || null;
   const value = Number(formData.get("value")) || 0;
   const closeDateRaw = String(formData.get("closeDate") || "");
   const revenueStream = String(formData.get("revenueStream") || "").trim();
@@ -28,6 +29,7 @@ export async function createDeal(formData: FormData) {
       company,
       companyId,
       contactName,
+      contactId,
       value,
       revenueStream,
       stage: "Lead",
@@ -55,6 +57,31 @@ export async function updateDealTitle(dealId: string, title: string) {
   await prisma.deal.update({
     where: { id: dealId },
     data: { title: trimmed || "New Engagement" },
+  });
+  revalidateDealViews();
+}
+
+export async function updateDealCompany(dealId: string, company: string) {
+  const trimmed = company.trim() || "—";
+  const companyId = await findOrCreateCompanyId(trimmed);
+  await prisma.deal.update({
+    where: { id: dealId },
+    data: { company: trimmed, companyId },
+  });
+  revalidateDealViews();
+}
+
+export async function updateDealContact(
+  dealId: string,
+  contactId: string,
+  contactName: string
+) {
+  await prisma.deal.update({
+    where: { id: dealId },
+    data: {
+      contactId: contactId || null,
+      contactName: contactName.trim() || "—",
+    },
   });
   revalidateDealViews();
 }

@@ -8,6 +8,8 @@ import {
   toggleDealTask,
   updateDealCloseDate,
   updateDealClosedLostReason,
+  updateDealCompany,
+  updateDealContact,
   updateDealNextStep,
   updateDealNotes,
   updateDealProbability,
@@ -16,10 +18,12 @@ import {
   updateDealTitle,
   updateDealValue,
 } from "@/app/actions/deals";
-import { Button, Field, Input, Select, Tag, Textarea } from "@/components/ui";
+import { Button, Field, Input, LinkButton, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
 import { REVENUE_STREAMS, STAGES, STAGE_PROBABILITY } from "@/lib/constants";
+
+type ContactOption = { id: string; name: string; company: string };
 
 type DealSummary = {
   id: string;
@@ -36,6 +40,7 @@ type Task = { id: string; text: string; done: boolean };
 type Activity = { id: string; text: string; ts: string };
 type DealDetail = DealSummary & {
   contactName: string;
+  contactId: string | null;
   notes: string;
   revenueStream: string;
   closedLostReason: string;
@@ -52,9 +57,13 @@ function isOverdue(dateStr: string | null): boolean {
 export function DealsBoard({
   initialDeals,
   initialSelectedId,
+  companyNames = [],
+  contacts = [],
 }: {
   initialDeals: DealSummary[];
   initialSelectedId?: string;
+  companyNames?: string[];
+  contacts?: ContactOption[];
 }) {
   const router = useRouter();
   const [deals, setDeals] = useState(initialDeals);
@@ -214,7 +223,16 @@ export function DealsBoard({
           }
           width="560px"
           onClose={closeDrawer}
-          footer={<Button onClick={closeDrawer}>Close</Button>}
+          footer={
+            <>
+              {loadedDetail && (
+                <LinkButton href={`/deals/${loadedDetail.id}/quote`} target="_blank">
+                  View quote
+                </LinkButton>
+              )}
+              <Button onClick={closeDrawer}>Close</Button>
+            </>
+          }
         >
           {!loadedDetail ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>
@@ -222,6 +240,8 @@ export function DealsBoard({
             <DealDrawerBody
               key={loadedDetail.id}
               detail={loadedDetail}
+              companyNames={companyNames}
+              contacts={contacts}
               onTitleCommit={(title) => {
                 patchSummary(loadedDetail.id, { title });
                 setDetail((prev) => (prev ? { ...prev, title } : prev));
@@ -253,6 +273,15 @@ export function DealsBoard({
               onProbabilityCommit={(probability) =>
                 updateDealProbability(loadedDetail.id, probability)
               }
+              onCompanyCommit={(company) => {
+                patchSummary(loadedDetail.id, { company });
+                setDetail((prev) => (prev ? { ...prev, company } : prev));
+                updateDealCompany(loadedDetail.id, company);
+              }}
+              onContactCommit={(contactId, contactName) => {
+                setDetail((prev) => (prev ? { ...prev, contactId, contactName } : prev));
+                updateDealContact(loadedDetail.id, contactId, contactName);
+              }}
               onAddNote={async (text) => {
                 await addDealNote(loadedDetail.id, text);
                 await refreshDetail();
@@ -284,6 +313,8 @@ export function DealsBoard({
 
 function DealDrawerBody({
   detail,
+  companyNames,
+  contacts,
   onTitleCommit,
   onValueCommit,
   onCloseDateCommit,
@@ -293,11 +324,15 @@ function DealDrawerBody({
   onRevenueStreamCommit,
   onClosedLostReasonCommit,
   onProbabilityCommit,
+  onCompanyCommit,
+  onContactCommit,
   onAddNote,
   onAddTask,
   onToggleTask,
 }: {
   detail: DealDetail;
+  companyNames: string[];
+  contacts: ContactOption[];
   onTitleCommit: (title: string) => void;
   onValueCommit: (value: number) => void;
   onCloseDateCommit: (closeDate: string) => void;
@@ -307,11 +342,16 @@ function DealDrawerBody({
   onRevenueStreamCommit: (revenueStream: string) => void;
   onClosedLostReasonCommit: (reason: string) => void;
   onProbabilityCommit: (probability: number) => void;
+  onCompanyCommit: (company: string) => void;
+  onContactCommit: (contactId: string, contactName: string) => void;
   onAddNote: (text: string) => Promise<void>;
   onAddTask: (text: string) => Promise<void>;
   onToggleTask: (taskId: string, done: boolean) => Promise<void>;
 }) {
   const [title, setTitle] = useState(detail.title);
+  const [company, setCompany] = useState(detail.company);
+  const [contactId, setContactId] = useState(detail.contactId ?? "");
+  const [contactName, setContactName] = useState(detail.contactName);
   const [value, setValue] = useState(String(detail.value));
   const [closeDate, setCloseDate] = useState(toDateInputValue(detail.closeDate));
   const [notes, setNotes] = useState(detail.notes);
@@ -338,6 +378,56 @@ function DealDrawerBody({
           }}
         />
       </Field>
+
+      <Field label="Company">
+        <Input
+          value={company}
+          list="drawer-company-names"
+          onChange={(e) => setCompany(e.target.value)}
+          onBlur={() => onCompanyCommit(company)}
+        />
+        <datalist id="drawer-company-names">
+          {companyNames.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Link to an existing contact">
+          <Select
+            value={contactId}
+            onChange={(e) => {
+              const id = e.target.value;
+              const match = contacts.find((c) => c.id === id);
+              setContactId(id);
+              if (match) {
+                setContactName(match.name);
+                onContactCommit(id, match.name);
+              } else {
+                onContactCommit("", contactName);
+              }
+            }}
+          >
+            <option value="">None</option>
+            {contacts.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.company})
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Contact name">
+          <Input
+            value={contactName}
+            onChange={(e) => {
+              setContactName(e.target.value);
+              setContactId("");
+            }}
+            onBlur={() => onContactCommit(contactId, contactName)}
+          />
+        </Field>
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Value">

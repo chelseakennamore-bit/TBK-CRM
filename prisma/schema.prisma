@@ -68,6 +68,7 @@ model Contact {
   nextFollowUpAt    DateTime?
   marketingConsent  Boolean    @default(false)
   activities        Activity[]
+  deals             Deal[]
   createdAt         DateTime   @default(now())
 }
 
@@ -78,6 +79,8 @@ model Deal {
   companyId         String?
   companyRecord     Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
   contactName       String
+  contactId         String?
+  contactRecord     Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
   value             Float      @default(0)
   stage             String     @default("Lead") // Lead | Qualified | Proposal | Negotiation | Won | Lost
   closeDate         DateTime?
