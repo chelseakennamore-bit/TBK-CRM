@@ -10,6 +10,7 @@ import {
   updateDealClosedLostReason,
   updateDealNextStep,
   updateDealNotes,
+  updateDealProbability,
   updateDealRevenueStream,
   updateDealStage,
   updateDealValue,
@@ -17,7 +18,7 @@ import {
 import { Button, Field, Input, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
-import { REVENUE_STREAMS, STAGES } from "@/lib/constants";
+import { REVENUE_STREAMS, STAGES, STAGE_PROBABILITY } from "@/lib/constants";
 
 type DealSummary = {
   id: string;
@@ -37,6 +38,7 @@ type DealDetail = DealSummary & {
   notes: string;
   revenueStream: string;
   closedLostReason: string;
+  probability: number;
   tasks: Task[];
   activities: Activity[];
 };
@@ -242,6 +244,9 @@ export function DealsBoard({
               onClosedLostReasonCommit={(reason) =>
                 updateDealClosedLostReason(loadedDetail.id, reason)
               }
+              onProbabilityCommit={(probability) =>
+                updateDealProbability(loadedDetail.id, probability)
+              }
               onAddNote={async (text) => {
                 await addDealNote(loadedDetail.id, text);
                 await refreshDetail();
@@ -280,6 +285,7 @@ function DealDrawerBody({
   onNextStepCommit,
   onRevenueStreamCommit,
   onClosedLostReasonCommit,
+  onProbabilityCommit,
   onAddNote,
   onAddTask,
   onToggleTask,
@@ -292,6 +298,7 @@ function DealDrawerBody({
   onNextStepCommit: (nextStep: string, nextStepDueAt: string) => void;
   onRevenueStreamCommit: (revenueStream: string) => void;
   onClosedLostReasonCommit: (reason: string) => void;
+  onProbabilityCommit: (probability: number) => void;
   onAddNote: (text: string) => Promise<void>;
   onAddTask: (text: string) => Promise<void>;
   onToggleTask: (taskId: string, done: boolean) => Promise<void>;
@@ -304,8 +311,10 @@ function DealDrawerBody({
   const [nextStepDueAt, setNextStepDueAt] = useState(toDateInputValue(detail.nextStepDueAt));
   const [revenueStream, setRevenueStream] = useState(detail.revenueStream);
   const [closedLostReason, setClosedLostReason] = useState(detail.closedLostReason);
+  const [probability, setProbability] = useState(String(detail.probability));
   const [newNote, setNewNote] = useState("");
   const [newTask, setNewTask] = useState("");
+  const weightedValue = Math.round((Number(value) || 0) * (Number(probability) || 0)) / 100;
 
   return (
     <div className="flex flex-col gap-4">
@@ -331,12 +340,33 @@ function DealDrawerBody({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
+        <Field label="Probability">
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={probability}
+            onChange={(e) => setProbability(e.target.value)}
+            onBlur={() => {
+              const clamped = Math.max(0, Math.min(100, Number(probability) || 0));
+              setProbability(String(clamped));
+              onProbabilityCommit(clamped);
+            }}
+          />
+        </Field>
+        <div className="pt-5 text-sm text-zinc-500 dark:text-zinc-400">
+          Weighted value: <span className="font-semibold text-zinc-900 dark:text-zinc-50">{money(weightedValue)}</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Stage">
           <Select
             value={stage}
             onChange={(e) => {
               const next = e.target.value;
               setStage(next);
+              setProbability(String(STAGE_PROBABILITY[next] ?? 0));
               onStageChange(next);
             }}
           >

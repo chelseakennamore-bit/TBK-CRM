@@ -18,6 +18,14 @@ export const STAGE_PROBABILITY: Record<string, number> = {
   Lost: 0,
 };
 
+export const COMPANY_SIZES = [
+  "1-10",
+  "11-50",
+  "51-200",
+  "201-1000",
+  "1000+",
+] as const;
+
 export const REVENUE_STREAMS = [
   "Consulting project",
   "Consulting retainer",
@@ -35,3 +43,5 @@ export const PROJECT_STATUSES = [
 ] as const;
 
 export const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Overdue"] as const;
+
+export const PROJECT_HEALTH = ["Green", "Yellow", "Red"] as const;

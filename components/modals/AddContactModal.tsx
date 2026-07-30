@@ -1,17 +1,28 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createContact } from "@/app/actions/contacts";
+import { createContact, findContactByEmail } from "@/app/actions/contacts";
 import { Button, Field, Input } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 
 export function AddContactModal({ companyNames = [] }: { companyNames?: string[] }) {
   const [open, setOpen] = useState(false);
+  const [duplicate, setDuplicate] = useState<{ name: string; company: string } | null>(null);
   const [, formAction, pending] = useActionState(async (_prev: null, formData: FormData) => {
     await createContact(formData);
     setOpen(false);
+    setDuplicate(null);
     return null;
   }, null);
+
+  async function checkEmail(email: string) {
+    if (!email.trim()) {
+      setDuplicate(null);
+      return;
+    }
+    const existing = await findContactByEmail(email);
+    setDuplicate(existing ? { name: existing.name, company: existing.company } : null);
+  }
 
   return (
     <>
@@ -50,12 +61,22 @@ export function AddContactModal({ companyNames = [] }: { companyNames?: string[]
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Email">
-                <Input name="email" type="email" />
+                <Input
+                  name="email"
+                  type="email"
+                  onBlur={(e) => checkEmail(e.target.value)}
+                />
               </Field>
               <Field label="Phone">
                 <Input name="phone" type="tel" />
               </Field>
             </div>
+            {duplicate && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                {duplicate.name} at {duplicate.company} already has this email — saving will
+                add a second contact.
+              </p>
+            )}
           </form>
         </Modal>
       )}

@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { findOrCreateCompanyId } from "@/app/actions/companies";
+import { STAGE_PROBABILITY } from "@/lib/constants";
 
 function revalidateDealViews() {
   revalidatePath("/deals");
@@ -30,6 +31,7 @@ export async function createDeal(formData: FormData) {
       value,
       revenueStream,
       stage: "Lead",
+      probability: STAGE_PROBABILITY["Lead"] ?? 0,
       closeDate: closeDateRaw ? new Date(closeDateRaw) : null,
     },
   });
@@ -39,8 +41,18 @@ export async function createDeal(formData: FormData) {
 export async function updateDealStage(dealId: string, stage: string) {
   await prisma.deal.update({
     where: { id: dealId },
-    data: { stage, activities: { create: [{ text: `Stage changed to ${stage}` }] } },
+    data: {
+      stage,
+      probability: STAGE_PROBABILITY[stage] ?? 0,
+      activities: { create: [{ text: `Stage changed to ${stage}` }] },
+    },
   });
+  revalidateDealViews();
+}
+
+export async function updateDealProbability(dealId: string, probability: number) {
+  const clamped = Math.max(0, Math.min(100, Math.round(probability) || 0));
+  await prisma.deal.update({ where: { id: dealId }, data: { probability: clamped } });
   revalidateDealViews();
 }
 
