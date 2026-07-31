@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   addContactNote,
+  updateContactDetails,
   updateContactFollowUp,
   updateContactMarketingConsent,
 } from "@/app/actions/contacts";
@@ -27,7 +28,14 @@ function isOverdue(dateStr: string | null): boolean {
   return new Date(dateStr).getTime() < Date.now();
 }
 
-export function ContactsTable({ contacts }: { contacts: Contact[] }) {
+export function ContactsTable({
+  contacts: initialContacts,
+  companyNames = [],
+}: {
+  contacts: Contact[];
+  companyNames?: string[];
+}) {
+  const [contacts, setContacts] = useState(initialContacts);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ContactDetail | null>(null);
 
@@ -48,6 +56,11 @@ export function ContactsTable({ contacts }: { contacts: Contact[] }) {
     if (!selectedId) return;
     const res = await fetch(`/api/contacts/${selectedId}`);
     setDetail(await res.json());
+  }
+
+  function patchContact(id: string, patch: Partial<Contact>) {
+    setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    setDetail((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev));
   }
 
   return (
@@ -121,6 +134,8 @@ export function ContactsTable({ contacts }: { contacts: Contact[] }) {
             <ContactDetailBody
               key={loadedDetail.id}
               detail={loadedDetail}
+              companyNames={companyNames}
+              onFieldsCommit={(fields) => patchContact(loadedDetail.id, fields)}
               onRefresh={refreshDetail}
             />
           )}
@@ -132,23 +147,71 @@ export function ContactsTable({ contacts }: { contacts: Contact[] }) {
 
 function ContactDetailBody({
   detail,
+  companyNames,
+  onFieldsCommit,
   onRefresh,
 }: {
   detail: ContactDetail;
+  companyNames: string[];
+  onFieldsCommit: (fields: Partial<Contact>) => void;
   onRefresh: () => Promise<void>;
 }) {
+  const [name, setName] = useState(detail.name);
+  const [company, setCompany] = useState(detail.company);
+  const [title, setTitle] = useState(detail.title);
+  const [email, setEmail] = useState(detail.email);
+  const [phone, setPhone] = useState(detail.phone);
   const [followUpDate, setFollowUpDate] = useState(toDateInputValue(detail.nextFollowUpAt));
   const [consent, setConsent] = useState(detail.marketingConsent);
   const [newNote, setNewNote] = useState("");
 
+  function commitFields() {
+    const fields = { name, company, title, email, phone };
+    onFieldsCommit(fields);
+    updateContactDetails(detail.id, fields);
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3">
+        <Field label="Name">
+          <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={commitFields} />
+        </Field>
+        <Field label="Company">
+          <Input
+            value={company}
+            list="contact-drawer-company-names"
+            onChange={(e) => setCompany(e.target.value)}
+            onBlur={commitFields}
+          />
+          <datalist id="contact-drawer-company-names">
+            {companyNames.map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+        </Field>
+      </div>
+
+      <Field label="Title">
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} onBlur={commitFields} />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Email">
-          <div className="text-sm">{detail.email || "—"}</div>
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={commitFields}
+          />
         </Field>
         <Field label="Phone">
-          <div className="text-sm">{detail.phone || "—"}</div>
+          <Input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            onBlur={commitFields}
+          />
         </Field>
       </div>
 

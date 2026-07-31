@@ -39,6 +39,7 @@ export default async function ContactsPage() {
           ...c,
           nextFollowUpAt: c.nextFollowUpAt ? c.nextFollowUpAt.toISOString() : null,
         }))}
+        companyNames={companies.map((c) => c.name)}
       />
     </div>
   );
