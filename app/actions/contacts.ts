@@ -42,6 +42,29 @@ export async function updateContactMarketingConsent(
   revalidatePath("/contacts");
 }
 
+export async function updateContactDetails(
+  contactId: string,
+  data: { name: string; company: string; title: string; email: string; phone: string }
+) {
+  const name = data.name.trim() || "New contact";
+  const company = data.company.trim() || "—";
+  const companyId = await findOrCreateCompanyId(company);
+
+  await prisma.contact.update({
+    where: { id: contactId },
+    data: {
+      name,
+      company,
+      companyId,
+      title: data.title.trim(),
+      email: data.email.trim(),
+      phone: data.phone.trim(),
+    },
+  });
+  revalidatePath("/contacts");
+  revalidatePath("/companies");
+}
+
 // Non-blocking helper for the Add Contact form: surfaces a matching
 // existing contact by email so the user can decide whether to proceed,
 // without hard-blocking submission.
