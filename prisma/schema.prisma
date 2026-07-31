@@ -53,6 +53,7 @@ model Company {
   contacts             Contact[]
   deals                Deal[]
   invoices             Invoice[]
+  projects             Project[]
   createdAt            DateTime  @default(now())
 }
 
@@ -69,6 +70,7 @@ model Contact {
   marketingConsent  Boolean    @default(false)
   activities        Activity[]
   deals             Deal[]
+  projects          Project[]
   createdAt         DateTime   @default(now())
 }
 
@@ -147,6 +149,8 @@ model Activity {
   deal      Deal?    @relation(fields: [dealId], references: [id], onDelete: Cascade)
   contactId String?
   contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   ts        DateTime @default(now())
   text      String
   // Who/what logged this: "user" (default), "system" (e.g. lead
@@ -156,19 +160,30 @@ model Activity {
 }
 
 model Project {
-  id              String    @id @default(cuid())
+  id              String     @id @default(cuid())
   name            String
   client          String
-  status          String    @default("Not started") // Not started | In progress | Blocked | Complete
-  progress        Int       @default(0)
+  companyId       String?
+  companyRecord   Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactId       String?
+  contactRecord   Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  status          String     @default("Not started") // Not started | In progress | Blocked | Complete
+  progress        Int        @default(0)
   dueDate         DateTime?
-  health          String    @default("Green") // Green | Yellow | Red
-  nextDeliverable String    @default("")
+  health          String     @default("Green") // Green | Yellow | Red
+  nextDeliverable String     @default("")
   nextMeetingAt   DateTime?
+  // Internal working notes -- distinct from the originating deal's
+  // customer-facing scopeOfWork, which seeds this on auto-creation.
+  notes           String     @default("")
+  // Committed budget for the engagement. Defaults from the deal's value
+  // when a project is auto-created on Won; editable afterward.
+  contractedValue Float      @default(0)
   dealId          String?
-  deal            Deal?     @relation(fields: [dealId], references: [id])
+  deal            Deal?      @relation(fields: [dealId], references: [id])
   subtasks        Subtask[]
-  createdAt       DateTime  @default(now())
+  activities      Activity[]
+  createdAt       DateTime   @default(now())
 }
 
 model Subtask {

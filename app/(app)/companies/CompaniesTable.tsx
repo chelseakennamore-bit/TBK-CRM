@@ -14,7 +14,26 @@ type Company = {
   notes: string;
   contactCount: number;
   dealCount: number;
+  projectCount: number;
   invoiceCount: number;
+};
+
+type LineItem = { id: string; description: string; detail: string; amount: number };
+type DealSummary = {
+  id: string;
+  title: string;
+  stage: string;
+  value: number;
+  revenueStream: string;
+  paymentTerms: string;
+  lineItems: LineItem[];
+};
+type ProjectSummary = {
+  id: string;
+  name: string;
+  status: string;
+  health: string;
+  dueDate: string | null;
 };
 
 type CompanyDetail = {
@@ -27,7 +46,8 @@ type CompanyDetail = {
   icpTier: string;
   governmentContractor: boolean;
   contacts: { id: string; name: string; title: string; email: string }[];
-  deals: { id: string; title: string; stage: string; value: number }[];
+  deals: DealSummary[];
+  projects: ProjectSummary[];
   invoices: { id: string; amount: number; status: string; dueDate: string | null }[];
 };
 
@@ -57,6 +77,7 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
             <Th>Website</Th>
             <Th>Contacts</Th>
             <Th>Deals</Th>
+            <Th>Projects</Th>
             <Th>Invoices</Th>
           </tr>
         </thead>
@@ -75,6 +96,7 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
               </Td>
               <Td>{c.contactCount}</Td>
               <Td>{c.dealCount}</Td>
+              <Td>{c.projectCount}</Td>
               <Td>{c.invoiceCount}</Td>
             </tr>
           ))}
@@ -114,6 +136,7 @@ function CompanyDetailBody({ detail }: { detail: CompanyDetail }) {
   const [companySize, setCompanySize] = useState(detail.companySize);
   const [icpTier, setIcpTier] = useState(detail.icpTier);
   const [govContractor, setGovContractor] = useState(detail.governmentContractor);
+  const wonDeals = detail.deals.filter((d) => d.stage === "Won");
 
   return (
     <div className="flex flex-col gap-5">
@@ -214,6 +237,69 @@ function CompanyDetailBody({ detail }: { detail: CompanyDetail }) {
           ))}
           {detail.deals.length === 0 && (
             <div className="text-sm text-zinc-400">No deals yet.</div>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Projects ({detail.projects.length})
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {detail.projects.map((p) => (
+            <div key={p.id} className="flex items-center gap-2 text-sm">
+              <span className="font-medium text-zinc-900 dark:text-zinc-50">{p.name}</span>
+              <Tag variant="outline">{p.status}</Tag>
+              <Tag variant="neutral">{p.health}</Tag>
+              {p.dueDate && (
+                <span className="text-zinc-500 dark:text-zinc-400">Due {fmtDate(p.dueDate)}</span>
+              )}
+            </div>
+          ))}
+          {detail.projects.length === 0 && (
+            <div className="text-sm text-zinc-400">No projects yet.</div>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Contracts ({wonDeals.length})
+        </div>
+        <div className="flex flex-col gap-3">
+          {wonDeals.map((d) => (
+            <div
+              key={d.id}
+              className="rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-800"
+            >
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium text-zinc-900 dark:text-zinc-50">{d.title}</span>
+                {d.revenueStream && <Tag variant="accent">{d.revenueStream}</Tag>}
+                {d.paymentTerms && <Tag variant="outline">{d.paymentTerms}</Tag>}
+              </div>
+              {d.lineItems.length > 0 && (
+                <div className="mt-1.5 flex flex-col gap-0.5 pl-0.5">
+                  {d.lineItems.map((li) => (
+                    <div
+                      key={li.id}
+                      className="flex items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400"
+                    >
+                      <span>
+                        {li.description}
+                        {li.detail && ` — ${li.detail}`}
+                      </span>
+                      <span className="whitespace-nowrap">{money(li.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                Total {money(d.value)}
+              </div>
+            </div>
+          ))}
+          {wonDeals.length === 0 && (
+            <div className="text-sm text-zinc-400">No contracts yet.</div>
           )}
         </div>
       </div>

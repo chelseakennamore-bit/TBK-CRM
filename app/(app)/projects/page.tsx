@@ -6,10 +6,17 @@ import { ProjectsGrid } from "./ProjectsGrid";
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
-  const projects = await prisma.project.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { subtasks: { orderBy: { order: "asc" } } },
-  });
+  const [projects, companies, contacts] = await Promise.all([
+    prisma.project.findMany({
+      orderBy: { createdAt: "desc" },
+      include: { subtasks: { orderBy: { order: "asc" } } },
+    }),
+    prisma.company.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
+    prisma.contact.findMany({
+      select: { id: true, name: true, company: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   const initialProjects = projects.map((p) => ({
     id: p.id,
@@ -39,6 +46,8 @@ export default async function ProjectsPage() {
       <ProjectsGrid
         key={initialProjects.map((p) => p.id).join(",")}
         initialProjects={initialProjects}
+        companyNames={companies.map((c) => c.name)}
+        contacts={contacts}
       />
     </div>
   );

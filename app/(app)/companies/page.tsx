@@ -13,7 +13,7 @@ export default async function CompaniesPage() {
       name: true,
       website: true,
       notes: true,
-      _count: { select: { contacts: true, deals: true, invoices: true } },
+      _count: { select: { contacts: true, deals: true, invoices: true, projects: true } },
     },
   });
 
@@ -37,6 +37,7 @@ export default async function CompaniesPage() {
           notes: c.notes,
           contactCount: c._count.contacts,
           dealCount: c._count.deals,
+          projectCount: c._count.projects,
           invoiceCount: c._count.invoices,
         }))}
       />
