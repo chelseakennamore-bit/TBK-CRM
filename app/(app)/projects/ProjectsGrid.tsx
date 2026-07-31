@@ -431,18 +431,20 @@ function ProjectDetailBody({
           )}
         </div>
         <div className="mt-2 flex gap-2">
-          <Input
-            placeholder="Add a task"
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            className="flex-1"
-          />
-          <Input
-            type="date"
-            value={newTaskDue}
-            onChange={(e) => setNewTaskDue(e.target.value)}
-            className="w-[130px]"
-          />
+          <div className="min-w-0 flex-1">
+            <Input
+              placeholder="Add a task"
+              value={newTask}
+              onChange={(e) => setNewTask(e.target.value)}
+            />
+          </div>
+          <div className="w-36 shrink-0">
+            <Input
+              type="date"
+              value={newTaskDue}
+              onChange={(e) => setNewTaskDue(e.target.value)}
+            />
+          </div>
           <Button
             disabled={taskPending}
             onClick={async () => {
