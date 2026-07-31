@@ -14,7 +14,8 @@ function cx(...classes: Array<string | false | undefined>) {
 export function Card({
   className,
   children,
-}: {
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & {
   className?: string;
   children: ReactNode;
 }) {
@@ -24,6 +25,7 @@ export function Card({
         "rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900",
         className
       )}
+      {...props}
     >
       {children}
     </div>

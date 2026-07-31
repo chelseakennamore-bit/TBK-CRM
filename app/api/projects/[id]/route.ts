@@ -12,22 +12,25 @@ export async function GET(
   }
 
   const { id } = await params;
-  const company = await prisma.company.findUnique({
+  const project = await prisma.project.findUnique({
     where: { id },
     include: {
-      contacts: { orderBy: { name: "asc" } },
-      deals: {
-        orderBy: { createdAt: "desc" },
-        include: { lineItems: { orderBy: { order: "asc" } } },
+      subtasks: { orderBy: { order: "asc" } },
+      activities: { orderBy: { ts: "desc" } },
+      deal: {
+        select: {
+          id: true,
+          title: true,
+          stage: true,
+          invoices: { orderBy: { createdAt: "desc" } },
+        },
       },
-      invoices: { orderBy: { createdAt: "desc" } },
-      projects: { orderBy: { createdAt: "desc" } },
     },
   });
 
-  if (!company) {
+  if (!project) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json(company);
+  return NextResponse.json(project);
 }

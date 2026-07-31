@@ -41,7 +41,7 @@ export async function createDeal(formData: FormData) {
 }
 
 export async function updateDealStage(dealId: string, stage: string) {
-  await prisma.deal.update({
+  const deal = await prisma.deal.update({
     where: { id: dealId },
     data: {
       stage,
@@ -49,6 +49,31 @@ export async function updateDealStage(dealId: string, stage: string) {
       activities: { create: [{ text: `Stage changed to ${stage}` }] },
     },
   });
+
+  if (stage === "Won") {
+    const existingProject = await prisma.project.findFirst({
+      where: { dealId },
+      select: { id: true },
+    });
+    if (!existingProject) {
+      await prisma.project.create({
+        data: {
+          name: deal.title,
+          client: deal.company,
+          companyId: deal.companyId,
+          contactId: deal.contactId,
+          contractedValue: deal.value,
+          notes: deal.scopeOfWork,
+          dealId: deal.id,
+          activities: {
+            create: [{ text: "Created automatically when the deal closed", source: "system" }],
+          },
+        },
+      });
+      revalidatePath("/projects");
+    }
+  }
+
   revalidateDealViews();
 }
 
