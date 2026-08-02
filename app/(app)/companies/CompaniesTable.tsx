@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Button, Field, Input, Select, Table, Td, Th, Tag } from "@/components/ui";
 import { Modal } from "@/components/Modal";
-import { updateCompanyDetails } from "@/app/actions/companies";
+import { deleteCompany, updateCompanyDetails } from "@/app/actions/companies";
+import { DeleteButton } from "@/components/DeleteButton";
 import { money, fmtDate } from "@/lib/format";
 import { COMPANY_SIZES } from "@/lib/constants";
 
@@ -115,7 +116,18 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
           title={loadedDetail ? loadedDetail.name : "Loading…"}
           subtitle={loadedDetail?.website || undefined}
           onClose={() => setSelectedId(null)}
-          footer={<Button onClick={() => setSelectedId(null)}>Close</Button>}
+          footer={
+            <div className="flex w-full items-center justify-between gap-2">
+              {loadedDetail && (
+                <DeleteButton
+                  onDelete={deleteCompany.bind(null, loadedDetail.id)}
+                  confirmText={`Delete the company "${loadedDetail.name}"? This can't be undone.`}
+                  onDeleted={() => setSelectedId(null)}
+                />
+              )}
+              <Button onClick={() => setSelectedId(null)}>Close</Button>
+            </div>
+          }
         >
           {!loadedDetail ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>

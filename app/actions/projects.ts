@@ -27,6 +27,16 @@ export async function createProject(formData: FormData) {
   revalidateProjectViews();
 }
 
+export async function deleteProject(projectId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await prisma.project.delete({ where: { id: projectId } });
+  } catch {
+    return { ok: false, error: "Couldn't delete this project. It may have already been removed." };
+  }
+  revalidateProjectViews();
+  return { ok: true };
+}
+
 export async function updateProjectStatus(projectId: string, status: string) {
   await prisma.project.update({ where: { id: projectId }, data: { status } });
   revalidatePath("/projects");

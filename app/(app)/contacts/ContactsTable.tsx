@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import {
   addContactNote,
+  deleteContact,
   updateContactDetails,
   updateContactFollowUp,
   updateContactMarketingConsent,
 } from "@/app/actions/contacts";
 import { Button, Field, Input, Table, Td, Th, Tag } from "@/components/ui";
 import { Modal } from "@/components/Modal";
+import { DeleteButton } from "@/components/DeleteButton";
 import { daysAgo, fmtDate, toDateInputValue } from "@/lib/format";
 
 type Contact = {
@@ -126,7 +128,21 @@ export function ContactsTable({
             loadedDetail ? `${loadedDetail.title} · ${loadedDetail.company}` : undefined
           }
           onClose={() => setSelectedId(null)}
-          footer={<Button onClick={() => setSelectedId(null)}>Close</Button>}
+          footer={
+            <div className="flex w-full items-center justify-between gap-2">
+              {loadedDetail && (
+                <DeleteButton
+                  onDelete={deleteContact.bind(null, loadedDetail.id)}
+                  confirmText={`Delete the contact "${loadedDetail.name}"? This can't be undone.`}
+                  onDeleted={() => {
+                    setContacts((prev) => prev.filter((c) => c.id !== loadedDetail.id));
+                    setSelectedId(null);
+                  }}
+                />
+              )}
+              <Button onClick={() => setSelectedId(null)}>Close</Button>
+            </div>
+          }
         >
           {!loadedDetail ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>

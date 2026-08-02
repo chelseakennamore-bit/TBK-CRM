@@ -35,6 +35,7 @@ export default async function ContactsPage() {
         }
       />
       <ContactsTable
+        key={contacts.map((c) => c.id).join(",")}
         contacts={contacts.map((c) => ({
           ...c,
           nextFollowUpAt: c.nextFollowUpAt ? c.nextFollowUpAt.toISOString() : null,

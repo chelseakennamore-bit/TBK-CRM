@@ -5,6 +5,8 @@ import { ImportCsvModal } from "@/components/modals/ImportCsvModal";
 import { SyncNowButton } from "./SyncNowButton";
 import { ConvertButton } from "./ConvertButton";
 import { LeadFollowUpDate } from "./LeadFollowUpDate";
+import { DeleteButton } from "@/components/DeleteButton";
+import { deleteLead } from "@/app/actions/leads";
 import { daysAgo, toDateInputValue } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -80,7 +82,13 @@ export default async function LeadsPage() {
                 />
               </Td>
               <Td>
-                {lead.status === "new" && <ConvertButton leadId={lead.id} />}
+                <div className="flex items-center gap-2">
+                  {lead.status === "new" && <ConvertButton leadId={lead.id} />}
+                  <DeleteButton
+                    onDelete={deleteLead.bind(null, lead.id)}
+                    confirmText={`Delete the lead "${lead.name}"? This can't be undone.`}
+                  />
+                </div>
               </Td>
             </tr>
           ))}

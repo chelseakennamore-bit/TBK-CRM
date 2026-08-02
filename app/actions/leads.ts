@@ -173,6 +173,16 @@ export async function syncNow(): Promise<{ importedCount: number }> {
   return { importedCount: created.length };
 }
 
+export async function deleteLead(leadId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await prisma.lead.delete({ where: { id: leadId } });
+  } catch {
+    return { ok: false, error: "Couldn't delete this lead. It may have already been removed." };
+  }
+  revalidateLeadViews();
+  return { ok: true };
+}
+
 export async function convertLead(leadId: string) {
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) return;
