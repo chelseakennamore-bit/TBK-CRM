@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAuth } from "@/lib/authGuard";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { findOrCreateCompanyId } from "@/app/actions/companies";
@@ -11,6 +12,7 @@ function revalidateProjectViews() {
 }
 
 export async function createProject(formData: FormData) {
+  await requireAuth();
   const name = String(formData.get("name") || "").trim() || "New Engagement";
   const client = String(formData.get("client") || "").trim() || "—";
   const dueDateRaw = String(formData.get("dueDate") || "");
@@ -28,6 +30,7 @@ export async function createProject(formData: FormData) {
 }
 
 export async function deleteProject(projectId: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAuth();
   try {
     await prisma.project.delete({ where: { id: projectId } });
   } catch {
@@ -38,6 +41,7 @@ export async function deleteProject(projectId: string): Promise<{ ok: boolean; e
 }
 
 export async function updateProjectStatus(projectId: string, status: string) {
+  await requireAuth();
   await prisma.project.update({ where: { id: projectId }, data: { status } });
   revalidatePath("/projects");
 }
@@ -53,6 +57,7 @@ export async function updateProjectDetails(
     dueDate?: string;
   }
 ) {
+  await requireAuth();
   await prisma.project.update({
     where: { id: projectId },
     data: {
@@ -73,6 +78,7 @@ export async function updateProjectDetails(
 }
 
 export async function updateProjectName(projectId: string, name: string) {
+  await requireAuth();
   await prisma.project.update({
     where: { id: projectId },
     data: { name: name.trim() || "New Engagement" },
@@ -81,6 +87,7 @@ export async function updateProjectName(projectId: string, name: string) {
 }
 
 export async function updateProjectCompany(projectId: string, client: string) {
+  await requireAuth();
   const trimmed = client.trim() || "—";
   const companyId = await findOrCreateCompanyId(trimmed);
   await prisma.project.update({
@@ -91,6 +98,7 @@ export async function updateProjectCompany(projectId: string, client: string) {
 }
 
 export async function updateProjectContact(projectId: string, contactId: string) {
+  await requireAuth();
   await prisma.project.update({
     where: { id: projectId },
     data: { contactId: contactId || null },
@@ -99,6 +107,7 @@ export async function updateProjectContact(projectId: string, contactId: string)
 }
 
 export async function addProjectNote(projectId: string, text: string) {
+  await requireAuth();
   const trimmed = text.trim();
   if (!trimmed) return;
   await prisma.activity.create({ data: { projectId, text: trimmed } });
@@ -109,6 +118,7 @@ export async function addSubtask(
   text: string,
   dueDate: string
 ) {
+  await requireAuth();
   const trimmed = text.trim();
   if (!trimmed) return null;
   const subtask = await prisma.subtask.create({
@@ -123,6 +133,7 @@ export async function addSubtask(
 }
 
 export async function toggleSubtask(subtaskId: string, done: boolean) {
+  await requireAuth();
   await prisma.subtask.update({ where: { id: subtaskId }, data: { done } });
   revalidatePath("/projects");
 }

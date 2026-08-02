@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAuth } from "@/lib/authGuard";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { findOrCreateCompanyId } from "@/app/actions/companies";
@@ -14,6 +15,7 @@ function revalidateDealViews() {
 }
 
 export async function createDeal(formData: FormData) {
+  await requireAuth();
   const title = String(formData.get("title") || "").trim() || "New Engagement";
   const company = String(formData.get("company") || "").trim() || "—";
   const contactName = String(formData.get("contactName") || "").trim() || "—";
@@ -41,6 +43,7 @@ export async function createDeal(formData: FormData) {
 }
 
 export async function updateDealStage(dealId: string, stage: string) {
+  await requireAuth();
   const deal = await prisma.deal.update({
     where: { id: dealId },
     data: {
@@ -78,6 +81,7 @@ export async function updateDealStage(dealId: string, stage: string) {
 }
 
 export async function deleteDeal(dealId: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAuth();
   const [projectCount, invoiceCount] = await Promise.all([
     prisma.project.count({ where: { dealId } }),
     prisma.invoice.count({ where: { dealId } }),
@@ -102,6 +106,7 @@ export async function deleteDeal(dealId: string): Promise<{ ok: boolean; error?:
 }
 
 export async function updateDealTitle(dealId: string, title: string) {
+  await requireAuth();
   const trimmed = title.trim();
   await prisma.deal.update({
     where: { id: dealId },
@@ -111,6 +116,7 @@ export async function updateDealTitle(dealId: string, title: string) {
 }
 
 export async function updateDealCompany(dealId: string, company: string) {
+  await requireAuth();
   const trimmed = company.trim() || "—";
   const companyId = await findOrCreateCompanyId(trimmed);
   await prisma.deal.update({
@@ -125,6 +131,7 @@ export async function updateDealContact(
   contactId: string,
   contactName: string
 ) {
+  await requireAuth();
   await prisma.deal.update({
     where: { id: dealId },
     data: {
@@ -136,17 +143,20 @@ export async function updateDealContact(
 }
 
 export async function updateDealProbability(dealId: string, probability: number) {
+  await requireAuth();
   const clamped = Math.max(0, Math.min(100, Math.round(probability) || 0));
   await prisma.deal.update({ where: { id: dealId }, data: { probability: clamped } });
   revalidateDealViews();
 }
 
 export async function updateDealValue(dealId: string, value: number) {
+  await requireAuth();
   await prisma.deal.update({ where: { id: dealId }, data: { value } });
   revalidateDealViews();
 }
 
 export async function updateDealCloseDate(dealId: string, closeDate: string) {
+  await requireAuth();
   await prisma.deal.update({
     where: { id: dealId },
     data: { closeDate: closeDate ? new Date(closeDate) : null },
@@ -155,11 +165,13 @@ export async function updateDealCloseDate(dealId: string, closeDate: string) {
 }
 
 export async function updateDealNotes(dealId: string, notes: string) {
+  await requireAuth();
   await prisma.deal.update({ where: { id: dealId }, data: { notes } });
   revalidatePath("/deals");
 }
 
 export async function updateDealScopeOfWork(dealId: string, scopeOfWork: string) {
+  await requireAuth();
   await prisma.deal.update({ where: { id: dealId }, data: { scopeOfWork } });
   revalidatePath("/deals");
 }
@@ -169,6 +181,7 @@ export async function updateDealNextStep(
   nextStep: string,
   nextStepDueAt: string
 ) {
+  await requireAuth();
   await prisma.deal.update({
     where: { id: dealId },
     data: {
@@ -181,12 +194,14 @@ export async function updateDealNextStep(
 }
 
 export async function updateDealRevenueStream(dealId: string, revenueStream: string) {
+  await requireAuth();
   await prisma.deal.update({ where: { id: dealId }, data: { revenueStream } });
   revalidatePath("/deals");
   revalidatePath("/reports");
 }
 
 export async function updateDealClosedLostReason(dealId: string, reason: string) {
+  await requireAuth();
   await prisma.deal.update({
     where: { id: dealId },
     data: { closedLostReason: reason.trim() },
@@ -195,11 +210,13 @@ export async function updateDealClosedLostReason(dealId: string, reason: string)
 }
 
 export async function updateDealQuoteType(dealId: string, quoteType: string) {
+  await requireAuth();
   await prisma.deal.update({ where: { id: dealId }, data: { quoteType } });
   revalidatePath("/deals");
 }
 
 export async function updateDealQuoteProductName(dealId: string, quoteProductName: string) {
+  await requireAuth();
   await prisma.deal.update({
     where: { id: dealId },
     data: { quoteProductName: quoteProductName.trim() },
@@ -208,6 +225,7 @@ export async function updateDealQuoteProductName(dealId: string, quoteProductNam
 }
 
 export async function updateDealPaymentTerms(dealId: string, paymentTerms: string) {
+  await requireAuth();
   await prisma.deal.update({
     where: { id: dealId },
     data: { paymentTerms: paymentTerms.trim() || "Net 30 from invoice date" },
@@ -219,6 +237,7 @@ export async function updateDealPaymentTerms(dealId: string, paymentTerms: strin
 // time a deal's quote is viewed, so reprints stay stable. A no-op if
 // already assigned.
 export async function ensureQuoteIssued(dealId: string) {
+  await requireAuth();
   return prisma.$transaction(async (tx) => {
     const deal = await tx.deal.findUnique({
       where: { id: dealId },
@@ -250,6 +269,7 @@ export async function addQuoteLineItem(
     amount: number;
   }
 ) {
+  await requireAuth();
   const description = data.description.trim();
   if (!description) return null;
   const item = await prisma.quoteLineItem.create({
@@ -267,22 +287,26 @@ export async function addQuoteLineItem(
 }
 
 export async function deleteQuoteLineItem(lineItemId: string) {
+  await requireAuth();
   await prisma.quoteLineItem.delete({ where: { id: lineItemId } });
   revalidatePath("/deals");
 }
 
 export async function addDealNote(dealId: string, text: string) {
+  await requireAuth();
   const trimmed = text.trim();
   if (!trimmed) return;
   await prisma.activity.create({ data: { dealId, text: trimmed } });
 }
 
 export async function addDealTask(dealId: string, text: string) {
+  await requireAuth();
   const trimmed = text.trim();
   if (!trimmed) return;
   await prisma.task.create({ data: { dealId, text: trimmed } });
 }
 
 export async function toggleDealTask(taskId: string, done: boolean) {
+  await requireAuth();
   await prisma.task.update({ where: { id: taskId }, data: { done } });
 }

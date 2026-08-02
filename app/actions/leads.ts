@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAuth } from "@/lib/authGuard";
 import { prisma } from "@/lib/prisma";
 import { fetchSheetTab, rowsToObjects } from "@/lib/googleSheets";
 import { notifyNewLead } from "@/lib/webhooks";
@@ -15,6 +16,7 @@ function revalidateLeadViews() {
 }
 
 export async function createLead(formData: FormData) {
+  await requireAuth();
   const name = String(formData.get("name") || "").trim() || "New contact";
   const company = String(formData.get("company") || "").trim() || "—";
   const email = String(formData.get("email") || "").trim();
@@ -28,6 +30,7 @@ export async function createLead(formData: FormData) {
 }
 
 export async function updateLeadFollowUp(leadId: string, nextFollowUpAt: string) {
+  await requireAuth();
   await prisma.lead.update({
     where: { id: leadId },
     data: { nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null },
@@ -37,6 +40,7 @@ export async function updateLeadFollowUp(leadId: string, nextFollowUpAt: string)
 }
 
 export async function importLeadsCsv(formData: FormData) {
+  await requireAuth();
   const text = String(formData.get("csvText") || "");
   const rows = text
     .split("\n")
@@ -174,6 +178,7 @@ export async function syncNow(): Promise<{ importedCount: number }> {
 }
 
 export async function deleteLead(leadId: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAuth();
   try {
     await prisma.lead.delete({ where: { id: leadId } });
   } catch {
@@ -184,6 +189,7 @@ export async function deleteLead(leadId: string): Promise<{ ok: boolean; error?:
 }
 
 export async function convertLead(leadId: string) {
+  await requireAuth();
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) return;
 

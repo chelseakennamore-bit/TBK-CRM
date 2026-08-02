@@ -1,11 +1,13 @@
 "use server";
 
+import { requireAuth } from "@/lib/authGuard";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 // Finds an existing Company by case-insensitive name match, or creates one.
 // Returns null for blank/placeholder names ("no company" isn't a company).
 export async function findOrCreateCompanyId(nameRaw: string): Promise<string | null> {
+  await requireAuth();
   const name = nameRaw.trim();
   if (!name || name === "—") return null;
 
@@ -20,6 +22,7 @@ export async function findOrCreateCompanyId(nameRaw: string): Promise<string | n
 }
 
 export async function createCompany(formData: FormData) {
+  await requireAuth();
   const name = String(formData.get("name") || "").trim();
   if (!name) return;
   const website = String(formData.get("website") || "").trim();
@@ -36,6 +39,7 @@ export async function createCompany(formData: FormData) {
 }
 
 export async function deleteCompany(companyId: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAuth();
   const [contactCount, dealCount, projectCount, invoiceCount] = await Promise.all([
     prisma.contact.count({ where: { companyId } }),
     prisma.deal.count({ where: { companyId } }),
@@ -74,6 +78,7 @@ export async function updateCompanyDetails(
     governmentContractor?: boolean;
   }
 ) {
+  await requireAuth();
   await prisma.company.update({ where: { id: companyId }, data });
   revalidatePath("/companies");
 }
