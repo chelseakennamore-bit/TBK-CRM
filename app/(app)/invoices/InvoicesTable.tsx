@@ -7,7 +7,7 @@ import {
   updateInvoiceDetails,
   updateInvoiceStatus,
 } from "@/app/actions/invoices";
-import { Button, Field, Input, Select, Table, Td, Textarea, Th, Tag } from "@/components/ui";
+import { Button, Field, Input, LinkButton, Select, Table, Td, Textarea, Th, Tag } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { DeleteButton } from "@/components/DeleteButton";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
@@ -155,7 +155,14 @@ export function InvoicesTable({ invoices: initialInvoices }: { invoices: Invoice
                   }}
                 />
               )}
-              <Button onClick={() => setSelectedId(null)}>Close</Button>
+              <div className="flex items-center gap-2">
+                {loadedDetail && (
+                  <LinkButton href={`/invoices/${loadedDetail.id}/print`} target="_blank">
+                    View invoice
+                  </LinkButton>
+                )}
+                <Button onClick={() => setSelectedId(null)}>Close</Button>
+              </div>
             </div>
           }
         >
