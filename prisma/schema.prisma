@@ -164,6 +164,8 @@ model Activity {
   contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   ts        DateTime @default(now())
   text      String
   // Who/what logged this: "user" (default), "system" (e.g. lead
@@ -210,15 +212,32 @@ model Subtask {
 }
 
 model Invoice {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
+  // Sequential, permanent invoice number for bookkeeping records. Assigned
+  // once at creation time (unlike Deal.quoteNumber, which is assigned
+  // lazily on first quote view -- invoices are created deliberately, so
+  // there's no "not yet issued" state to wait out).
+  invoiceNumber Int?       @unique
   client        String
   companyId     String?
-  companyRecord Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  companyRecord Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
   dealId        String?
-  deal          Deal?     @relation(fields: [dealId], references: [id])
-  amount        Float     @default(0)
-  status        String    @default("Draft") // Draft | Sent | Paid | Overdue
-  issuedAt      DateTime  @default(now())
+  deal          Deal?      @relation(fields: [dealId], references: [id])
+  amount        Float      @default(0)
+  status        String     @default("Draft") // Draft | Sent | Paid | Overdue
+  // Tax/bookkeeping category for revenue-by-category reporting. Mirrors
+  // Deal.revenueStream but kept independent -- an invoice can be edited
+  // separately from the deal it originated from, and stand-alone invoices
+  // have no deal to inherit from.
+  revenueStream String     @default("")
+  notes         String     @default("")
+  issuedAt      DateTime   @default(now())
   dueDate       DateTime?
-  createdAt     DateTime  @default(now())
+  // When payment was actually received -- distinct from issuedAt/dueDate,
+  // and the field revenue-by-period reporting should key off for accurate
+  // cash-basis totals. Set automatically when status flips to "Paid",
+  // editable afterward to match the real payment date.
+  paidAt        DateTime?
+  activities    Activity[]
+  createdAt     DateTime   @default(now())
 }
