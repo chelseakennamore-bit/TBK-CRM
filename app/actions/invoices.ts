@@ -1,10 +1,12 @@
 "use server";
 
+import { requireAuth } from "@/lib/authGuard";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { findOrCreateCompanyId } from "@/app/actions/companies";
 
 export async function createInvoice(formData: FormData) {
+  await requireAuth();
   const client = String(formData.get("client") || "").trim() || "—";
   const dealId = String(formData.get("dealId") || "").trim();
   const amount = Number(formData.get("amount")) || 0;
@@ -26,11 +28,13 @@ export async function createInvoice(formData: FormData) {
 }
 
 export async function updateInvoiceStatus(invoiceId: string, status: string) {
+  await requireAuth();
   await prisma.invoice.update({ where: { id: invoiceId }, data: { status } });
   revalidatePath("/invoices");
 }
 
 export async function deleteInvoice(invoiceId: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAuth();
   try {
     await prisma.invoice.delete({ where: { id: invoiceId } });
   } catch {

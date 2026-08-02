@@ -13,6 +13,19 @@ model User {
   passwordHash String
 }
 
+// Records a failed login attempt for basic brute-force throttling. Stored
+// in the DB rather than in-memory since serverless invocations don't share
+// process memory -- a counter in a route handler wouldn't survive between
+// requests on Vercel. Only failures are recorded; a successful login clears
+// the count for that email.
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+}
+
 model Lead {
   id             String    @id @default(cuid())
   name           String

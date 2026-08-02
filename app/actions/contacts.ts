@@ -1,10 +1,12 @@
 "use server";
 
+import { requireAuth } from "@/lib/authGuard";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { findOrCreateCompanyId } from "@/app/actions/companies";
 
 export async function createContact(formData: FormData) {
+  await requireAuth();
   const name = String(formData.get("name") || "").trim() || "New contact";
   const company = String(formData.get("company") || "").trim() || "—";
   const title = String(formData.get("title") || "").trim();
@@ -20,12 +22,14 @@ export async function createContact(formData: FormData) {
 }
 
 export async function addContactNote(contactId: string, text: string) {
+  await requireAuth();
   const trimmed = text.trim();
   if (!trimmed) return;
   await prisma.activity.create({ data: { contactId, text: trimmed } });
 }
 
 export async function updateContactFollowUp(contactId: string, nextFollowUpAt: string) {
+  await requireAuth();
   await prisma.contact.update({
     where: { id: contactId },
     data: { nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null },
@@ -38,6 +42,7 @@ export async function updateContactMarketingConsent(
   contactId: string,
   marketingConsent: boolean
 ) {
+  await requireAuth();
   await prisma.contact.update({ where: { id: contactId }, data: { marketingConsent } });
   revalidatePath("/contacts");
 }
@@ -46,6 +51,7 @@ export async function updateContactDetails(
   contactId: string,
   data: { name: string; company: string; title: string; email: string; phone: string }
 ) {
+  await requireAuth();
   const name = data.name.trim() || "New contact";
   const company = data.company.trim() || "—";
   const companyId = await findOrCreateCompanyId(company);
@@ -66,6 +72,7 @@ export async function updateContactDetails(
 }
 
 export async function deleteContact(contactId: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAuth();
   const [dealCount, projectCount] = await Promise.all([
     prisma.deal.count({ where: { contactId } }),
     prisma.project.count({ where: { contactId } }),
@@ -94,6 +101,7 @@ export async function deleteContact(contactId: string): Promise<{ ok: boolean; e
 // existing contact by email so the user can decide whether to proceed,
 // without hard-blocking submission.
 export async function findContactByEmail(email: string) {
+  await requireAuth();
   const trimmed = email.trim();
   if (!trimmed) return null;
   return prisma.contact.findFirst({
@@ -113,6 +121,7 @@ export async function findOrCreateContactId(
   email: string,
   companyId: string | null
 ): Promise<string> {
+  await requireAuth();
   const trimmedEmail = email.trim();
   if (trimmedEmail) {
     const existing = await prisma.contact.findFirst({
