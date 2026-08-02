@@ -65,6 +65,31 @@ export async function updateContactDetails(
   revalidatePath("/companies");
 }
 
+export async function deleteContact(contactId: string): Promise<{ ok: boolean; error?: string }> {
+  const [dealCount, projectCount] = await Promise.all([
+    prisma.deal.count({ where: { contactId } }),
+    prisma.project.count({ where: { contactId } }),
+  ]);
+  const parts: string[] = [];
+  if (dealCount) parts.push(`${dealCount} deal${dealCount === 1 ? "" : "s"}`);
+  if (projectCount) parts.push(`${projectCount} project${projectCount === 1 ? "" : "s"}`);
+  if (parts.length > 0) {
+    return {
+      ok: false,
+      error: `Can't delete this contact -- it's still linked to ${parts.join(" and ")}. Unlink or delete those first.`,
+    };
+  }
+
+  try {
+    await prisma.contact.delete({ where: { id: contactId } });
+  } catch {
+    return { ok: false, error: "Couldn't delete this contact. It may have already been removed." };
+  }
+  revalidatePath("/contacts");
+  revalidatePath("/companies");
+  return { ok: true };
+}
+
 // Non-blocking helper for the Add Contact form: surfaces a matching
 // existing contact by email so the user can decide whether to proceed,
 // without hard-blocking submission.

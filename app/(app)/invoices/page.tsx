@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { LinkButton, PageHeader, StatCard, Table, Th, Td } from "@/components/ui";
 import { AddInvoiceModal } from "@/components/modals/AddInvoiceModal";
 import { InvoiceStatusSelect } from "./InvoiceStatusSelect";
+import { DeleteButton } from "@/components/DeleteButton";
+import { deleteInvoice } from "@/app/actions/invoices";
 import { fmtDate, money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +74,7 @@ export default async function InvoicesPage() {
             <Th>Issued</Th>
             <Th>Due</Th>
             <Th>Status</Th>
+            <Th />
           </tr>
         </thead>
         <tbody>
@@ -98,11 +101,17 @@ export default async function InvoicesPage() {
                   initialStatus={inv.status}
                 />
               </Td>
+              <Td>
+                <DeleteButton
+                  onDelete={deleteInvoice.bind(null, inv.id)}
+                  confirmText={`Delete the ${money(inv.amount)} invoice for ${inv.client}? This can't be undone.`}
+                />
+              </Td>
             </tr>
           ))}
           {invoices.length === 0 && (
             <tr>
-              <Td colSpan={6} className="text-center text-zinc-400">
+              <Td colSpan={7} className="text-center text-zinc-400">
                 No invoices yet.
               </Td>
             </tr>

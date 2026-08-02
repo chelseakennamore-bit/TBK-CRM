@@ -77,6 +77,30 @@ export async function updateDealStage(dealId: string, stage: string) {
   revalidateDealViews();
 }
 
+export async function deleteDeal(dealId: string): Promise<{ ok: boolean; error?: string }> {
+  const [projectCount, invoiceCount] = await Promise.all([
+    prisma.project.count({ where: { dealId } }),
+    prisma.invoice.count({ where: { dealId } }),
+  ]);
+  const parts: string[] = [];
+  if (projectCount) parts.push(`${projectCount} project${projectCount === 1 ? "" : "s"}`);
+  if (invoiceCount) parts.push(`${invoiceCount} invoice${invoiceCount === 1 ? "" : "s"}`);
+  if (parts.length > 0) {
+    return {
+      ok: false,
+      error: `Can't delete this deal -- it still has ${parts.join(" and ")} linked to it. Remove those first.`,
+    };
+  }
+
+  try {
+    await prisma.deal.delete({ where: { id: dealId } });
+  } catch {
+    return { ok: false, error: "Couldn't delete this deal. It may have already been removed." };
+  }
+  revalidateDealViews();
+  return { ok: true };
+}
+
 export async function updateDealTitle(dealId: string, title: string) {
   const trimmed = title.trim();
   await prisma.deal.update({

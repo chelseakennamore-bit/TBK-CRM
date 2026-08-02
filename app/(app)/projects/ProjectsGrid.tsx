@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   addProjectNote,
   addSubtask,
+  deleteProject,
   toggleSubtask,
   updateProjectCompany,
   updateProjectContact,
@@ -13,6 +14,7 @@ import {
 } from "@/app/actions/projects";
 import { Button, Card, Field, Input, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
+import { DeleteButton } from "@/components/DeleteButton";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
 import { PROJECT_HEALTH, PROJECT_STATUSES } from "@/lib/constants";
 
@@ -164,7 +166,21 @@ export function ProjectsGrid({
           subtitle={loadedDetail ? loadedDetail.client : undefined}
           width="560px"
           onClose={() => setSelectedId(null)}
-          footer={<Button onClick={() => setSelectedId(null)}>Close</Button>}
+          footer={
+            <div className="flex w-full items-center justify-between gap-2">
+              {loadedDetail && (
+                <DeleteButton
+                  onDelete={deleteProject.bind(null, loadedDetail.id)}
+                  confirmText={`Delete the project "${loadedDetail.name}"? This can't be undone.`}
+                  onDeleted={() => {
+                    setProjects((prev) => prev.filter((p) => p.id !== loadedDetail.id));
+                    setSelectedId(null);
+                  }}
+                />
+              )}
+              <Button onClick={() => setSelectedId(null)}>Close</Button>
+            </div>
+          }
         >
           {!loadedDetail ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>

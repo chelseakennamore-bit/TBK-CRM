@@ -35,6 +35,34 @@ export async function createCompany(formData: FormData) {
   revalidatePath("/companies");
 }
 
+export async function deleteCompany(companyId: string): Promise<{ ok: boolean; error?: string }> {
+  const [contactCount, dealCount, projectCount, invoiceCount] = await Promise.all([
+    prisma.contact.count({ where: { companyId } }),
+    prisma.deal.count({ where: { companyId } }),
+    prisma.project.count({ where: { companyId } }),
+    prisma.invoice.count({ where: { companyId } }),
+  ]);
+  const parts: string[] = [];
+  if (contactCount) parts.push(`${contactCount} contact${contactCount === 1 ? "" : "s"}`);
+  if (dealCount) parts.push(`${dealCount} deal${dealCount === 1 ? "" : "s"}`);
+  if (projectCount) parts.push(`${projectCount} project${projectCount === 1 ? "" : "s"}`);
+  if (invoiceCount) parts.push(`${invoiceCount} invoice${invoiceCount === 1 ? "" : "s"}`);
+  if (parts.length > 0) {
+    return {
+      ok: false,
+      error: `Can't delete this company -- it still has ${parts.join(", ")}. Remove those first.`,
+    };
+  }
+
+  try {
+    await prisma.company.delete({ where: { id: companyId } });
+  } catch {
+    return { ok: false, error: "Couldn't delete this company. It may have already been removed." };
+  }
+  revalidatePath("/companies");
+  return { ok: true };
+}
+
 export async function updateCompanyDetails(
   companyId: string,
   data: {

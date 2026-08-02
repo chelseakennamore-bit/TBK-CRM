@@ -29,3 +29,14 @@ export async function updateInvoiceStatus(invoiceId: string, status: string) {
   await prisma.invoice.update({ where: { id: invoiceId }, data: { status } });
   revalidatePath("/invoices");
 }
+
+export async function deleteInvoice(invoiceId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await prisma.invoice.delete({ where: { id: invoiceId } });
+  } catch {
+    return { ok: false, error: "Couldn't delete this invoice. It may have already been removed." };
+  }
+  revalidatePath("/invoices");
+  revalidatePath("/companies");
+  return { ok: true };
+}

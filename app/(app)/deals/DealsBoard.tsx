@@ -6,6 +6,7 @@ import {
   addDealNote,
   addDealTask,
   addQuoteLineItem,
+  deleteDeal,
   deleteQuoteLineItem,
   toggleDealTask,
   updateDealCloseDate,
@@ -26,6 +27,7 @@ import {
 } from "@/app/actions/deals";
 import { Button, Field, Input, LinkButton, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
+import { DeleteButton } from "@/components/DeleteButton";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
 import { QUOTE_TYPES, REVENUE_STREAMS, STAGES, STAGE_PROBABILITY } from "@/lib/constants";
 
@@ -243,14 +245,26 @@ export function DealsBoard({
           width="560px"
           onClose={closeDrawer}
           footer={
-            <>
+            <div className="flex w-full items-center justify-between gap-2">
               {loadedDetail && (
-                <LinkButton href={`/deals/${loadedDetail.id}/quote`} target="_blank">
-                  View quote
-                </LinkButton>
+                <DeleteButton
+                  onDelete={deleteDeal.bind(null, loadedDetail.id)}
+                  confirmText={`Delete the deal "${loadedDetail.title}"? This can't be undone.`}
+                  onDeleted={() => {
+                    setDeals((prev) => prev.filter((d) => d.id !== loadedDetail.id));
+                    closeDrawer();
+                  }}
+                />
               )}
-              <Button onClick={closeDrawer}>Close</Button>
-            </>
+              <div className="flex items-center gap-2">
+                {loadedDetail && (
+                  <LinkButton href={`/deals/${loadedDetail.id}/quote`} target="_blank">
+                    View quote
+                  </LinkButton>
+                )}
+                <Button onClick={closeDrawer}>Close</Button>
+              </div>
+            </div>
           }
         >
           {!loadedDetail ? (
