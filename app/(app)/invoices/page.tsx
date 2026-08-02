@@ -1,10 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { LinkButton, PageHeader, StatCard, Table, Th, Td } from "@/components/ui";
 import { AddInvoiceModal } from "@/components/modals/AddInvoiceModal";
-import { InvoiceStatusSelect } from "./InvoiceStatusSelect";
-import { DeleteButton } from "@/components/DeleteButton";
-import { deleteInvoice } from "@/app/actions/invoices";
-import { fmtDate, money } from "@/lib/format";
+import { InvoicesTable } from "./InvoicesTable";
+import { money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -27,14 +25,32 @@ export default async function InvoicesPage() {
     .reduce((a, i) => a + i.amount, 0);
   const overdueCount = invoices.filter((i) => i.status === "Overdue").length;
   const now = new Date();
+  // Uses paidAt (when money actually arrived), not issuedAt -- an invoice
+  // issued last month but paid this month is this month's revenue, not
+  // last month's.
   const paidThisMonth = invoices
     .filter(
       (i) =>
         i.status === "Paid" &&
-        i.issuedAt.getFullYear() === now.getFullYear() &&
-        i.issuedAt.getMonth() === now.getMonth()
+        i.paidAt &&
+        i.paidAt.getFullYear() === now.getFullYear() &&
+        i.paidAt.getMonth() === now.getMonth()
     )
     .reduce((a, i) => a + i.amount, 0);
+
+  const currentYear = now.getFullYear();
+  const paidThisYear = invoices.filter(
+    (i) => i.status === "Paid" && i.paidAt && i.paidAt.getFullYear() === currentYear
+  );
+  const totalThisYear = paidThisYear.reduce((a, i) => a + i.amount, 0);
+  const streamGroups = new Map<string, number>();
+  for (const inv of paidThisYear) {
+    const key = inv.revenueStream || "Uncategorized";
+    streamGroups.set(key, (streamGroups.get(key) ?? 0) + inv.amount);
+  }
+  const revenueByCategory = Array.from(streamGroups.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, amount]) => ({ category, amount }));
 
   return (
     <div>
@@ -65,59 +81,53 @@ export default async function InvoicesPage() {
           hint={now.toLocaleDateString("en-US", { month: "long" })}
         />
       </div>
-      <Table>
-        <thead>
-          <tr>
-            <Th>Client</Th>
-            <Th>Linked deal</Th>
-            <Th>Amount</Th>
-            <Th>Issued</Th>
-            <Th>Due</Th>
-            <Th>Status</Th>
-            <Th />
-          </tr>
-        </thead>
-        <tbody>
-          {invoices.map((inv) => (
-            <tr key={inv.id}>
-              <Td className="font-semibold text-zinc-900 dark:text-zinc-50">
-                {inv.client}
-              </Td>
-              <Td className="text-sm text-zinc-500 dark:text-zinc-400">
-                {inv.deal?.title ?? "—"}
-              </Td>
-              <Td className="font-semibold text-zinc-900 dark:text-zinc-50">
-                {money(inv.amount)}
-              </Td>
-              <Td className="text-sm text-zinc-500 dark:text-zinc-400">
-                {fmtDate(inv.issuedAt)}
-              </Td>
-              <Td className="text-sm text-zinc-500 dark:text-zinc-400">
-                {fmtDate(inv.dueDate)}
-              </Td>
-              <Td>
-                <InvoiceStatusSelect
-                  invoiceId={inv.id}
-                  initialStatus={inv.status}
-                />
-              </Td>
-              <Td>
-                <DeleteButton
-                  onDelete={deleteInvoice.bind(null, inv.id)}
-                  confirmText={`Delete the ${money(inv.amount)} invoice for ${inv.client}? This can't be undone.`}
-                />
-              </Td>
-            </tr>
-          ))}
-          {invoices.length === 0 && (
-            <tr>
-              <Td colSpan={7} className="text-center text-zinc-400">
-                No invoices yet.
-              </Td>
-            </tr>
-          )}
-        </tbody>
-      </Table>
+
+      {revenueByCategory.length > 0 && (
+        <div className="mb-6">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              Revenue by category — {currentYear}
+            </h2>
+            <div className="text-sm text-zinc-500 dark:text-zinc-400">
+              Total paid:{" "}
+              <span className="font-semibold text-zinc-900 dark:text-zinc-50">
+                {money(totalThisYear)}
+              </span>
+            </div>
+          </div>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Category</Th>
+                <Th>Paid this year</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {revenueByCategory.map((row) => (
+                <tr key={row.category}>
+                  <Td className="font-semibold text-zinc-900 dark:text-zinc-50">
+                    {row.category}
+                  </Td>
+                  <Td>{money(row.amount)}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      )}
+
+      <InvoicesTable
+        invoices={invoices.map((inv) => ({
+          id: inv.id,
+          invoiceNumber: inv.invoiceNumber,
+          client: inv.client,
+          amount: inv.amount,
+          status: inv.status,
+          issuedAt: inv.issuedAt.toISOString(),
+          dueDate: inv.dueDate ? inv.dueDate.toISOString() : null,
+          dealTitle: inv.deal?.title ?? null,
+        }))}
+      />
     </div>
   );
 }
