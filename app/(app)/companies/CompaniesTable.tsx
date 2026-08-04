@@ -3,9 +3,14 @@
 import { useEffect, useState } from "react";
 import { Button, Field, Input, Select, Table, Td, Th, Tag } from "@/components/ui";
 import { Modal } from "@/components/Modal";
-import { deleteCompany, updateCompanyDetails } from "@/app/actions/companies";
+import {
+  addCompanyNote,
+  deleteCompany,
+  setPrimaryContact,
+  updateCompanyDetails,
+} from "@/app/actions/companies";
 import { DeleteButton } from "@/components/DeleteButton";
-import { money, fmtDate } from "@/lib/format";
+import { money, fmtDate, daysAgo } from "@/lib/format";
 import { COMPANY_SIZES } from "@/lib/constants";
 
 type Company = {
@@ -13,6 +18,7 @@ type Company = {
   name: string;
   website: string;
   notes: string;
+  primaryContactName: string | null;
   contactCount: number;
   dealCount: number;
   projectCount: number;
@@ -36,6 +42,8 @@ type ProjectSummary = {
   health: string;
   dueDate: string | null;
 };
+type InvoiceSummary = { id: string; amount: number; status: string; dueDate: string | null };
+type CompanyActivity = { id: string; text: string; ts: string };
 
 type CompanyDetail = {
   id: string;
@@ -47,9 +55,11 @@ type CompanyDetail = {
   icpTier: string;
   governmentContractor: boolean;
   contacts: { id: string; name: string; title: string; email: string }[];
+  primaryContact: { id: string; name: string } | null;
   deals: DealSummary[];
   projects: ProjectSummary[];
-  invoices: { id: string; amount: number; status: string; dueDate: string | null }[];
+  invoices: InvoiceSummary[];
+  activities: CompanyActivity[];
 };
 
 export function CompaniesTable({ companies }: { companies: Company[] }) {
@@ -69,6 +79,12 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
 
   const loadedDetail = detail && detail.id === selectedId ? detail : null;
 
+  async function refreshDetail() {
+    if (!selectedId) return;
+    const res = await fetch(`/api/companies/${selectedId}`);
+    setDetail(await res.json());
+  }
+
   return (
     <>
       <Table>
@@ -76,6 +92,7 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
           <tr>
             <Th>Name</Th>
             <Th>Website</Th>
+            <Th>Primary contact</Th>
             <Th>Contacts</Th>
             <Th>Deals</Th>
             <Th>Projects</Th>
@@ -95,6 +112,9 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
               <Td className="text-zinc-500 dark:text-zinc-400">
                 {c.website || "—"}
               </Td>
+              <Td className="text-zinc-500 dark:text-zinc-400">
+                {c.primaryContactName || "—"}
+              </Td>
               <Td>{c.contactCount}</Td>
               <Td>{c.dealCount}</Td>
               <Td>{c.projectCount}</Td>
@@ -103,7 +123,7 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
           ))}
           {companies.length === 0 && (
             <tr>
-              <Td colSpan={5} className="text-center text-zinc-400">
+              <Td colSpan={7} className="text-center text-zinc-400">
                 No companies yet.
               </Td>
             </tr>
@@ -132,7 +152,11 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
           {!loadedDetail ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading…</p>
           ) : (
-            <CompanyDetailBody key={loadedDetail.id} detail={loadedDetail} />
+            <CompanyDetailBody
+              key={loadedDetail.id}
+              detail={loadedDetail}
+              onRefresh={refreshDetail}
+            />
           )}
         </Modal>
       )}
@@ -140,7 +164,13 @@ export function CompaniesTable({ companies }: { companies: Company[] }) {
   );
 }
 
-function CompanyDetailBody({ detail }: { detail: CompanyDetail }) {
+function CompanyDetailBody({
+  detail,
+  onRefresh,
+}: {
+  detail: CompanyDetail;
+  onRefresh: () => Promise<void>;
+}) {
   const [showMore, setShowMore] = useState(
     Boolean(detail.industry || detail.companySize || detail.icpTier || detail.governmentContractor)
   );
@@ -148,13 +178,37 @@ function CompanyDetailBody({ detail }: { detail: CompanyDetail }) {
   const [companySize, setCompanySize] = useState(detail.companySize);
   const [icpTier, setIcpTier] = useState(detail.icpTier);
   const [govContractor, setGovContractor] = useState(detail.governmentContractor);
+  const [primaryContactId, setPrimaryContactId] = useState(detail.primaryContact?.id ?? "");
+  const [newNote, setNewNote] = useState("");
   const wonDeals = detail.deals.filter((d) => d.stage === "Won");
+  const lifetimeValue = detail.invoices
+    .filter((i) => i.status === "Paid")
+    .reduce((a, i) => a + i.amount, 0);
 
   return (
     <div className="flex flex-col gap-5">
       {detail.notes && (
         <p className="text-sm text-zinc-600 dark:text-zinc-300">{detail.notes}</p>
       )}
+
+      <div className="flex gap-8 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+        <div>
+          <div className="text-[11px] font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+            Lifetime value
+          </div>
+          <div className="mt-0.5 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            {money(lifetimeValue)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[11px] font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+            Primary contact
+          </div>
+          <div className="mt-0.5 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            {detail.primaryContact?.name ?? "—"}
+          </div>
+        </div>
+      </div>
 
       {!showMore ? (
         <button
@@ -214,12 +268,33 @@ function CompanyDetailBody({ detail }: { detail: CompanyDetail }) {
       )}
 
       <div>
-        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-          Contacts ({detail.contacts.length})
+        <div className="mb-1 flex items-center justify-between">
+          <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            Contacts ({detail.contacts.length})
+          </div>
+          {detail.contacts.length > 0 && (
+            <Select
+              value={primaryContactId}
+              onChange={(e) => {
+                const next = e.target.value;
+                setPrimaryContactId(next);
+                setPrimaryContact(detail.id, next || null);
+              }}
+              className="max-w-[220px]"
+            >
+              <option value="">No primary contact</option>
+              {detail.contacts.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+          )}
         </div>
         <div className="flex flex-col gap-1.5">
           {detail.contacts.map((p) => (
             <div key={p.id} className="text-sm">
+              {p.id === primaryContactId && <span title="Primary contact">★ </span>}
               <span className="font-medium text-zinc-900 dark:text-zinc-50">{p.name}</span>
               {p.title && (
                 <span className="text-zinc-500 dark:text-zinc-400"> · {p.title}</span>
@@ -335,6 +410,42 @@ function CompanyDetailBody({ detail }: { detail: CompanyDetail }) {
           {detail.invoices.length === 0 && (
             <div className="text-sm text-zinc-400">No invoices yet.</div>
           )}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Activity
+        </div>
+        <div className="flex max-h-40 flex-col gap-2 overflow-y-auto">
+          {detail.activities.map((a) => (
+            <div key={a.id} className="text-sm">
+              <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                {daysAgo(a.ts)}
+              </div>
+              <div>{a.text}</div>
+            </div>
+          ))}
+          {detail.activities.length === 0 && (
+            <div className="text-sm text-zinc-400">No activity yet.</div>
+          )}
+        </div>
+        <div className="mt-2 flex gap-2">
+          <Input
+            placeholder="Add a note"
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+          />
+          <Button
+            onClick={async () => {
+              if (!newNote.trim()) return;
+              await addCompanyNote(detail.id, newNote);
+              setNewNote("");
+              await onRefresh();
+            }}
+          >
+            Add
+          </Button>
         </div>
       </div>
     </div>

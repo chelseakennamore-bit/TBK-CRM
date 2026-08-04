@@ -16,12 +16,14 @@ export async function GET(
     where: { id },
     include: {
       contacts: { orderBy: { name: "asc" } },
+      primaryContact: { select: { id: true, name: true } },
       deals: {
         orderBy: { createdAt: "desc" },
         include: { lineItems: { orderBy: { order: "asc" } } },
       },
       invoices: { orderBy: { createdAt: "desc" } },
       projects: { orderBy: { createdAt: "desc" } },
+      activities: { orderBy: { ts: "desc" } },
     },
   });
 

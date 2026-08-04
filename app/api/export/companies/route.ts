@@ -10,12 +10,16 @@ export async function GET() {
 
   const companies = await prisma.company.findMany({
     orderBy: { name: "asc" },
-    include: { _count: { select: { contacts: true, deals: true, invoices: true } } },
+    include: {
+      primaryContact: { select: { name: true } },
+      _count: { select: { contacts: true, deals: true, invoices: true } },
+    },
   });
 
   const csv = toCsv(companies, [
     { header: "Name", value: (c) => c.name },
     { header: "Website", value: (c) => c.website },
+    { header: "Primary contact", value: (c) => c.primaryContact?.name ?? "" },
     { header: "Contacts", value: (c) => c._count.contacts },
     { header: "Deals", value: (c) => c._count.deals },
     { header: "Invoices", value: (c) => c._count.invoices },

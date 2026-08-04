@@ -63,10 +63,17 @@ model Company {
   companySize          String    @default("")
   governmentContractor Boolean   @default(false)
   icpTier              String    @default("")
-  contacts             Contact[]
+  // Which of this company's contacts is the main point of contact. A
+  // separate relation from Contact.companyId ("belongs to this company")
+  // -- named explicitly since Prisma can't infer which of two relations
+  // between the same two models a field belongs to.
+  primaryContactId     String?
+  primaryContact       Contact?  @relation("CompanyPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
+  contacts             Contact[] @relation("CompanyContacts")
   deals                Deal[]
   invoices             Invoice[]
   projects             Project[]
+  activities           Activity[]
   createdAt            DateTime  @default(now())
 }
 
@@ -75,7 +82,8 @@ model Contact {
   name              String
   company           String
   companyId         String?
-  companyRecord     Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  companyRecord     Company?   @relation("CompanyContacts", fields: [companyId], references: [id], onDelete: SetNull)
+  primaryContactFor Company[]  @relation("CompanyPrimaryContact")
   email             String
   phone             String
   title             String
@@ -166,6 +174,8 @@ model Activity {
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   invoiceId String?
   invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   ts        DateTime @default(now())
   text      String
   // Who/what logged this: "user" (default), "system" (e.g. lead
