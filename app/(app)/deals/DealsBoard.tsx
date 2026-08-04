@@ -28,6 +28,7 @@ import {
 import { Button, Field, Input, LinkButton, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { DeleteButton } from "@/components/DeleteButton";
+import { SendEmailModal } from "@/components/modals/SendEmailModal";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
 import { QUOTE_TYPES, REVENUE_STREAMS, STAGES, STAGE_PROBABILITY } from "@/lib/constants";
 
@@ -57,6 +58,7 @@ type LineItem = {
 type DealDetail = DealSummary & {
   contactName: string;
   contactId: string | null;
+  contactEmail: string;
   notes: string;
   scopeOfWork: string;
   revenueStream: string;
@@ -73,6 +75,17 @@ type DealDetail = DealSummary & {
 function isOverdue(dateStr: string | null): boolean {
   if (!dateStr) return false;
   return new Date(dateStr).getTime() < Date.now();
+}
+
+function quoteEmailBody(detail: DealDetail): string {
+  const lines = [
+    `Quote for ${detail.title}`,
+    "",
+    `Amount: ${money(detail.value)}`,
+  ];
+  if (detail.paymentTerms) lines.push(`Payment terms: ${detail.paymentTerms}`);
+  if (detail.scopeOfWork) lines.push("", detail.scopeOfWork);
+  return lines.join("\n");
 }
 
 export function DealsBoard({
@@ -258,9 +271,19 @@ export function DealsBoard({
               )}
               <div className="flex items-center gap-2">
                 {loadedDetail && (
-                  <LinkButton href={`/deals/${loadedDetail.id}/quote`} target="_blank">
-                    View quote
-                  </LinkButton>
+                  <>
+                    <SendEmailModal
+                      triggerLabel="Email quote"
+                      defaultTo={loadedDetail.contactEmail}
+                      defaultSubject={`Quote for ${loadedDetail.title}`}
+                      defaultMessage={quoteEmailBody(loadedDetail)}
+                      dealId={loadedDetail.id}
+                      onSent={refreshDetail}
+                    />
+                    <LinkButton href={`/deals/${loadedDetail.id}/quote`} target="_blank">
+                      View quote
+                    </LinkButton>
+                  </>
                 )}
                 <Button onClick={closeDrawer}>Close</Button>
               </div>

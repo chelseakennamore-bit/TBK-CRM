@@ -12,22 +12,11 @@ export async function GET(
   }
 
   const { id } = await params;
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
-    include: {
-      deal: { select: { id: true, title: true, contactRecord: { select: { email: true } } } },
-      activities: { orderBy: { ts: "desc" } },
-    },
-  });
+  const lead = await prisma.lead.findUnique({ where: { id } });
 
-  if (!invoice) {
+  if (!lead) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const { deal, ...rest } = invoice;
-  return NextResponse.json({
-    ...rest,
-    deal: deal ? { id: deal.id, title: deal.title } : null,
-    contactEmail: deal?.contactRecord?.email ?? "",
-  });
+  return NextResponse.json(lead);
 }
