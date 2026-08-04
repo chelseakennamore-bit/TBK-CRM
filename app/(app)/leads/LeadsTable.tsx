@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { deleteLead } from "@/app/actions/leads";
+import { useEffect, useState, useTransition } from "react";
+import { deleteLead, setLeadClosed } from "@/app/actions/leads";
 import { Button, Table, Td, Th, Tag } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { DeleteButton } from "@/components/DeleteButton";
@@ -27,7 +27,54 @@ function isOverdue(dateStr: string | null): boolean {
   return new Date(dateStr).getTime() < Date.now();
 }
 
-export function LeadsTable({ leads: initialLeads }: { leads: Lead[] }) {
+function statusLabel(status: string): string {
+  if (status === "new") return "New";
+  if (status === "closed") return "Closed";
+  return "In pipeline";
+}
+
+function statusVariant(status: string): "accent" | "neutral" {
+  return status === "new" ? "accent" : "neutral";
+}
+
+function CloseReopenButton({
+  leadId,
+  closed,
+  onChanged,
+}: {
+  leadId: string;
+  closed: boolean;
+  onChanged: (status: string) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <Button
+      type="button"
+      disabled={pending}
+      onClick={(e) => {
+        e.stopPropagation();
+        startTransition(async () => {
+          const result = await setLeadClosed(leadId, !closed);
+          if (!result.ok) {
+            window.alert(result.error ?? "Couldn't update this lead.");
+            return;
+          }
+          onChanged(closed ? "new" : "closed");
+        });
+      }}
+    >
+      {pending ? "…" : closed ? "Reopen" : "Mark closed"}
+    </Button>
+  );
+}
+
+export function LeadsTable({
+  leads: initialLeads,
+  showClosed = false,
+}: {
+  leads: Lead[];
+  showClosed?: boolean;
+}) {
   const [leads, setLeads] = useState(initialLeads);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<Lead | null>(null);
@@ -44,6 +91,14 @@ export function LeadsTable({ leads: initialLeads }: { leads: Lead[] }) {
   }, [selectedId]);
 
   const loadedDetail = detail && detail.id === selectedId ? detail : null;
+
+  function patchStatus(id: string, status: string) {
+    setLeads((prev) => {
+      const next = prev.map((l) => (l.id === id ? { ...l, status } : l));
+      return showClosed ? next : next.filter((l) => l.status !== "closed");
+    });
+    setDetail((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
+  }
 
   return (
     <>
@@ -91,9 +146,7 @@ export function LeadsTable({ leads: initialLeads }: { leads: Lead[] }) {
                 {daysAgo(lead.receivedAt)}
               </Td>
               <Td>
-                <Tag variant={lead.status === "new" ? "accent" : "neutral"}>
-                  {lead.status === "new" ? "New" : "In pipeline"}
-                </Tag>
+                <Tag variant={statusVariant(lead.status)}>{statusLabel(lead.status)}</Tag>
               </Td>
               <Td onClick={(e) => e.stopPropagation()}>
                 <LeadFollowUpDate
@@ -104,6 +157,13 @@ export function LeadsTable({ leads: initialLeads }: { leads: Lead[] }) {
               <Td onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-2">
                   {lead.status === "new" && <ConvertButton leadId={lead.id} />}
+                  {lead.status !== "in_pipeline" && (
+                    <CloseReopenButton
+                      leadId={lead.id}
+                      closed={lead.status === "closed"}
+                      onChanged={(status) => patchStatus(lead.id, status)}
+                    />
+                  )}
                   <SendEmailModal
                     triggerLabel="Email"
                     defaultTo={lead.email}
@@ -160,6 +220,21 @@ export function LeadsTable({ leads: initialLeads }: { leads: Lead[] }) {
                 )}
                 {loadedDetail && loadedDetail.status === "new" && (
                   <ConvertButton leadId={loadedDetail.id} />
+                )}
+                {loadedDetail && loadedDetail.status !== "in_pipeline" && (
+                  <CloseReopenButton
+                    leadId={loadedDetail.id}
+                    closed={loadedDetail.status === "closed"}
+                    onChanged={(status) => {
+                      patchStatus(loadedDetail.id, status);
+                      // Closing a lead removes it from this list when not
+                      // showing closed leads (server revalidation remounts
+                      // this component, which would otherwise silently
+                      // drop the open drawer) -- dismiss it explicitly
+                      // instead, same as delete already does.
+                      if (status === "closed" && !showClosed) setSelectedId(null);
+                    }}
+                  />
                 )}
                 <Button onClick={() => setSelectedId(null)}>Close</Button>
               </div>
@@ -225,8 +300,8 @@ export function LeadsTable({ leads: initialLeads }: { leads: Lead[] }) {
                   <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                     Status
                   </div>
-                  <Tag variant={loadedDetail.status === "new" ? "accent" : "neutral"}>
-                    {loadedDetail.status === "new" ? "New" : "In pipeline"}
+                  <Tag variant={statusVariant(loadedDetail.status)}>
+                    {statusLabel(loadedDetail.status)}
                   </Tag>
                 </div>
                 <div>

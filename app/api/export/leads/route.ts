@@ -20,7 +20,11 @@ export async function GET() {
     { header: "Message", value: (l) => l.message },
     { header: "Source", value: (l) => l.source },
     { header: "Received", value: (l) => fmtDate(l.receivedAt) },
-    { header: "Status", value: (l) => (l.status === "new" ? "New" : "In pipeline") },
+    {
+      header: "Status",
+      value: (l) =>
+        l.status === "new" ? "New" : l.status === "closed" ? "Closed" : "In pipeline",
+    },
   ]);
 
   return csvResponse(csv, "leads.csv");

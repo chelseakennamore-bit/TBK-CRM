@@ -63,7 +63,7 @@ model Lead {
   message        String
   source         String
   receivedAt     DateTime  @default(now())
-  status         String    @default("new") // new | in_pipeline
+  status         String    @default("new") // new | in_pipeline | closed
   nextFollowUpAt DateTime?
   // Stable identifier for rows pulled in from an external source (e.g. a
   // Google Sheet tab + row timestamp + email), used to avoid re-importing
