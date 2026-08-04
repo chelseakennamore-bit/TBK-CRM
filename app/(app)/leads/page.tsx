@@ -8,10 +8,21 @@ import { daysAgo } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeadsPage() {
-  const [leads, lastSynced] = await Promise.all([
-    prisma.lead.findMany({ orderBy: { receivedAt: "desc" } }),
+export default async function LeadsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ showClosed?: string }>;
+}) {
+  const { showClosed: showClosedParam } = await searchParams;
+  const showClosed = showClosedParam === "1";
+
+  const [leads, lastSynced, closedCount] = await Promise.all([
+    prisma.lead.findMany({
+      where: showClosed ? {} : { status: { not: "closed" } },
+      orderBy: { receivedAt: "desc" },
+    }),
     prisma.setting.findUnique({ where: { key: "lastSyncedAt" } }),
+    prisma.lead.count({ where: { status: "closed" } }),
   ]);
 
   const lastSyncedLabel = lastSynced
@@ -33,6 +44,9 @@ export default async function LeadsPage() {
           Last synced {lastSyncedLabel}
         </div>
         <div className="ml-auto flex gap-2">
+          <LinkButton href={showClosed ? "/leads" : "/leads?showClosed=1"}>
+            {showClosed ? "Hide closed leads" : `Show closed leads (${closedCount})`}
+          </LinkButton>
           <LinkButton href="/api/export/leads">Export CSV</LinkButton>
           <ImportCsvModal />
           <SyncNowButton />
@@ -40,6 +54,7 @@ export default async function LeadsPage() {
       </div>
       <LeadsTable
         key={leads.map((l) => l.id).join(",")}
+        showClosed={showClosed}
         leads={leads.map((l) => ({
           id: l.id,
           name: l.name,

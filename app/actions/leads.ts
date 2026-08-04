@@ -209,6 +209,37 @@ export async function deleteLead(leadId: string): Promise<{ ok: boolean; error?:
   return { ok: true };
 }
 
+// Closing (rather than deleting) is what actually sticks for leads that
+// keep coming back from the sheet sync: syncNow dedupes on sourceRef still
+// existing in the table, so a deleted lead's sourceRef frees up and the
+// next sync re-imports it. Closing leaves the row in place -- permanently
+// blocking re-import -- while keeping "in_pipeline" meaning only "was
+// actually converted to a deal."
+export async function setLeadClosed(
+  leadId: string,
+  closed: boolean
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await requireAuth();
+  let lead;
+  try {
+    lead = await prisma.lead.update({
+      where: { id: leadId },
+      data: { status: closed ? "closed" : "new" },
+    });
+  } catch {
+    return { ok: false, error: "Couldn't update this lead. It may have already been removed." };
+  }
+  await logAudit(session, {
+    action: "status_change",
+    entityType: "Lead",
+    entityId: lead.id,
+    entityLabel: lead.name,
+    detail: closed ? "Closed" : "Reopened",
+  });
+  revalidateLeadViews();
+  return { ok: true };
+}
+
 export async function convertLead(leadId: string) {
   const session = await requireAuth();
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
