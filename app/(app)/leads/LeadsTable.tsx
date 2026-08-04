@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { deleteLead, setLeadClosed } from "@/app/actions/leads";
-import { Button, Table, Td, Th, Tag } from "@/components/ui";
+import { deleteLead, setLeadClosed, updateLeadClosedReason } from "@/app/actions/leads";
+import { Button, Field, Input, Table, Td, Th, Tag } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SendEmailModal } from "@/components/modals/SendEmailModal";
@@ -19,6 +19,7 @@ type Lead = {
   source: string;
   receivedAt: string;
   status: string;
+  closedReason: string;
   nextFollowUpAt: string | null;
 };
 
@@ -68,6 +69,20 @@ function CloseReopenButton({
   );
 }
 
+function ClosedReasonField({ leadId, initialReason }: { leadId: string; initialReason: string }) {
+  const [reason, setReason] = useState(initialReason);
+  return (
+    <Field label="Why was this closed?">
+      <Input
+        value={reason}
+        placeholder="e.g. Disqualified, not a fit, no response"
+        onChange={(e) => setReason(e.target.value)}
+        onBlur={() => updateLeadClosedReason(leadId, reason)}
+      />
+    </Field>
+  );
+}
+
 export function LeadsTable({
   leads: initialLeads,
   showClosed = false,
@@ -93,11 +108,21 @@ export function LeadsTable({
   const loadedDetail = detail && detail.id === selectedId ? detail : null;
 
   function patchStatus(id: string, status: string) {
+    // Reopening clears closedReason server-side (setLeadClosed); mirror
+    // that here so a stale reason doesn't linger in local state and
+    // reappear if the lead gets closed again without a page reload.
+    const clearReason = status !== "closed";
     setLeads((prev) => {
-      const next = prev.map((l) => (l.id === id ? { ...l, status } : l));
+      const next = prev.map((l) =>
+        l.id === id ? { ...l, status, closedReason: clearReason ? "" : l.closedReason } : l
+      );
       return showClosed ? next : next.filter((l) => l.status !== "closed");
     });
-    setDetail((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
+    setDetail((prev) =>
+      prev && prev.id === id
+        ? { ...prev, status, closedReason: clearReason ? "" : prev.closedReason }
+        : prev
+    );
   }
 
   return (
@@ -319,6 +344,14 @@ export function LeadsTable({
                   )}
                 </div>
               </div>
+
+              {loadedDetail.status === "closed" && (
+                <ClosedReasonField
+                  key={loadedDetail.id}
+                  leadId={loadedDetail.id}
+                  initialReason={loadedDetail.closedReason}
+                />
+              )}
             </div>
           )}
         </Modal>

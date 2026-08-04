@@ -64,6 +64,7 @@ export default async function LeadsPage({
           source: l.source,
           receivedAt: l.receivedAt.toISOString(),
           status: l.status,
+          closedReason: l.closedReason,
           nextFollowUpAt: l.nextFollowUpAt ? l.nextFollowUpAt.toISOString() : null,
         }))}
       />
