@@ -8,9 +8,38 @@ datasource db {
 }
 
 model User {
-  id           String @id @default(cuid())
-  email        String @unique
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String   @default("")
   passwordHash String
+  // Soft-disable instead of deleting a user, so their audit log history
+  // (attributed by denormalized name/email, not a live FK) stays intact
+  // and their account can't sign in without deleting the trail of what
+  // they did while it existed.
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+// Who did what, for security/audit review. Deliberately logs key events
+// (create, delete, significant status changes) rather than every field
+// edit -- an auditor asks "who created/deleted/approved this," not "who
+// edited this textarea." userId/userEmail/userName are captured at write
+// time rather than joined live, so the trail survives a user being
+// deactivated or a record being deleted.
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  userEmail   String
+  userName    String
+  action      String // "create" | "delete" | "status_change"
+  entityType  String // "Lead" | "Contact" | "Company" | "Deal" | "Project" | "Invoice"
+  entityId    String
+  entityLabel String
+  detail      String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
 
 // Records a failed login attempt for basic brute-force throttling. Stored

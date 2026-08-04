@@ -47,7 +47,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (await isLockedOut(email)) return null;
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) {
+        if (!user || !user.active) {
           await recordFailedAttempt(email);
           return null;
         }
@@ -57,8 +57,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
         await clearAttempts(email);
-        return { id: user.id, email: user.email };
+        return { id: user.id, email: user.email, name: user.name };
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.name = user.name;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      session.user.id = token.id as string;
+      session.user.name = (token.name as string) ?? "";
+      return session;
+    },
+  },
 });

@@ -1,12 +1,13 @@
 "use server";
 
 import { requireAuth } from "@/lib/authGuard";
+import { logAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { findOrCreateCompanyId } from "@/app/actions/companies";
 
 export async function createContact(formData: FormData) {
-  await requireAuth();
+  const session = await requireAuth();
   const name = String(formData.get("name") || "").trim() || "New contact";
   const company = String(formData.get("company") || "").trim() || "—";
   const title = String(formData.get("title") || "").trim();
@@ -14,8 +15,14 @@ export async function createContact(formData: FormData) {
   const phone = String(formData.get("phone") || "").trim();
   const companyId = await findOrCreateCompanyId(company);
 
-  await prisma.contact.create({
+  const contact = await prisma.contact.create({
     data: { name, company, companyId, title, email, phone },
+  });
+  await logAudit(session, {
+    action: "create",
+    entityType: "Contact",
+    entityId: contact.id,
+    entityLabel: contact.name,
   });
   revalidatePath("/contacts");
   revalidatePath("/companies");
@@ -72,7 +79,7 @@ export async function updateContactDetails(
 }
 
 export async function deleteContact(contactId: string): Promise<{ ok: boolean; error?: string }> {
-  await requireAuth();
+  const session = await requireAuth();
   const [dealCount, projectCount] = await Promise.all([
     prisma.deal.count({ where: { contactId } }),
     prisma.project.count({ where: { contactId } }),
@@ -87,11 +94,18 @@ export async function deleteContact(contactId: string): Promise<{ ok: boolean; e
     };
   }
 
+  let contact;
   try {
-    await prisma.contact.delete({ where: { id: contactId } });
+    contact = await prisma.contact.delete({ where: { id: contactId } });
   } catch {
     return { ok: false, error: "Couldn't delete this contact. It may have already been removed." };
   }
+  await logAudit(session, {
+    action: "delete",
+    entityType: "Contact",
+    entityId: contact.id,
+    entityLabel: contact.name,
+  });
   revalidatePath("/contacts");
   revalidatePath("/companies");
   return { ok: true };

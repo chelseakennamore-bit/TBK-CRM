@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAuth } from "@/lib/authGuard";
+import { logAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -22,7 +23,7 @@ export async function findOrCreateCompanyId(nameRaw: string): Promise<string | n
 }
 
 export async function createCompany(formData: FormData) {
-  await requireAuth();
+  const session = await requireAuth();
   const name = String(formData.get("name") || "").trim();
   if (!name) return;
   const website = String(formData.get("website") || "").trim();
@@ -32,14 +33,20 @@ export async function createCompany(formData: FormData) {
   const icpTier = String(formData.get("icpTier") || "").trim();
   const governmentContractor = formData.get("governmentContractor") === "on";
 
-  await prisma.company.create({
+  const company = await prisma.company.create({
     data: { name, website, notes, industry, companySize, icpTier, governmentContractor },
+  });
+  await logAudit(session, {
+    action: "create",
+    entityType: "Company",
+    entityId: company.id,
+    entityLabel: company.name,
   });
   revalidatePath("/companies");
 }
 
 export async function deleteCompany(companyId: string): Promise<{ ok: boolean; error?: string }> {
-  await requireAuth();
+  const session = await requireAuth();
   const [contactCount, dealCount, projectCount, invoiceCount] = await Promise.all([
     prisma.contact.count({ where: { companyId } }),
     prisma.deal.count({ where: { companyId } }),
@@ -58,11 +65,18 @@ export async function deleteCompany(companyId: string): Promise<{ ok: boolean; e
     };
   }
 
+  let company;
   try {
-    await prisma.company.delete({ where: { id: companyId } });
+    company = await prisma.company.delete({ where: { id: companyId } });
   } catch {
     return { ok: false, error: "Couldn't delete this company. It may have already been removed." };
   }
+  await logAudit(session, {
+    action: "delete",
+    entityType: "Company",
+    entityId: company.id,
+    entityLabel: company.name,
+  });
   revalidatePath("/companies");
   return { ok: true };
 }

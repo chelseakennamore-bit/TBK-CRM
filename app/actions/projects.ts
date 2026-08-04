@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAuth } from "@/lib/authGuard";
+import { logAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { findOrCreateCompanyId } from "@/app/actions/companies";
@@ -12,13 +13,13 @@ function revalidateProjectViews() {
 }
 
 export async function createProject(formData: FormData) {
-  await requireAuth();
+  const session = await requireAuth();
   const name = String(formData.get("name") || "").trim() || "New Engagement";
   const client = String(formData.get("client") || "").trim() || "—";
   const dueDateRaw = String(formData.get("dueDate") || "");
   const companyId = await findOrCreateCompanyId(client);
 
-  await prisma.project.create({
+  const project = await prisma.project.create({
     data: {
       name,
       client,
@@ -26,23 +27,43 @@ export async function createProject(formData: FormData) {
       dueDate: dueDateRaw ? new Date(dueDateRaw) : null,
     },
   });
+  await logAudit(session, {
+    action: "create",
+    entityType: "Project",
+    entityId: project.id,
+    entityLabel: project.name,
+  });
   revalidateProjectViews();
 }
 
 export async function deleteProject(projectId: string): Promise<{ ok: boolean; error?: string }> {
-  await requireAuth();
+  const session = await requireAuth();
+  let project;
   try {
-    await prisma.project.delete({ where: { id: projectId } });
+    project = await prisma.project.delete({ where: { id: projectId } });
   } catch {
     return { ok: false, error: "Couldn't delete this project. It may have already been removed." };
   }
+  await logAudit(session, {
+    action: "delete",
+    entityType: "Project",
+    entityId: project.id,
+    entityLabel: project.name,
+  });
   revalidateProjectViews();
   return { ok: true };
 }
 
 export async function updateProjectStatus(projectId: string, status: string) {
-  await requireAuth();
-  await prisma.project.update({ where: { id: projectId }, data: { status } });
+  const session = await requireAuth();
+  const project = await prisma.project.update({ where: { id: projectId }, data: { status } });
+  await logAudit(session, {
+    action: "status_change",
+    entityType: "Project",
+    entityId: project.id,
+    entityLabel: project.name,
+    detail: `Status changed to ${status}`,
+  });
   revalidatePath("/projects");
 }
 
