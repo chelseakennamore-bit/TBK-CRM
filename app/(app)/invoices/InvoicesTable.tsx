@@ -10,6 +10,7 @@ import {
 import { Button, Field, Input, LinkButton, Select, Table, Td, Textarea, Th, Tag } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { DeleteButton } from "@/components/DeleteButton";
+import { SendEmailModal } from "@/components/modals/SendEmailModal";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
 import { INVOICE_STATUSES, REVENUE_STREAMS } from "@/lib/constants";
 
@@ -30,8 +31,21 @@ type InvoiceDetail = Invoice & {
   notes: string;
   paidAt: string | null;
   deal: { id: string; title: string } | null;
+  contactEmail: string;
   activities: Activity[];
 };
+
+function invoiceEmailBody(detail: InvoiceDetail): string {
+  const lines = [
+    `Invoice${detail.invoiceNumber ? ` #${detail.invoiceNumber}` : ""} for ${detail.client}`,
+    "",
+    `Amount due: ${money(detail.amount)}`,
+    `Issued: ${fmtDate(detail.issuedAt)}`,
+  ];
+  if (detail.dueDate) lines.push(`Due: ${fmtDate(detail.dueDate)}`);
+  if (detail.notes) lines.push("", detail.notes);
+  return lines.join("\n");
+}
 
 function isOverdue(dateStr: string | null): boolean {
   if (!dateStr) return false;
@@ -157,9 +171,19 @@ export function InvoicesTable({ invoices: initialInvoices }: { invoices: Invoice
               )}
               <div className="flex items-center gap-2">
                 {loadedDetail && (
-                  <LinkButton href={`/invoices/${loadedDetail.id}/print`} target="_blank">
-                    View invoice
-                  </LinkButton>
+                  <>
+                    <SendEmailModal
+                      triggerLabel="Email invoice"
+                      defaultTo={loadedDetail.contactEmail}
+                      defaultSubject={`Invoice${loadedDetail.invoiceNumber ? ` #${loadedDetail.invoiceNumber}` : ""} from TBK Enterprise Consulting`}
+                      defaultMessage={invoiceEmailBody(loadedDetail)}
+                      invoiceId={loadedDetail.id}
+                      onSent={refreshDetail}
+                    />
+                    <LinkButton href={`/invoices/${loadedDetail.id}/print`} target="_blank">
+                      View invoice
+                    </LinkButton>
+                  </>
                 )}
                 <Button onClick={() => setSelectedId(null)}>Close</Button>
               </div>

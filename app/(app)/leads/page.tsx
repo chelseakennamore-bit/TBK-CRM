@@ -6,6 +6,7 @@ import { SyncNowButton } from "./SyncNowButton";
 import { ConvertButton } from "./ConvertButton";
 import { LeadFollowUpDate } from "./LeadFollowUpDate";
 import { DeleteButton } from "@/components/DeleteButton";
+import { SendEmailModal } from "@/components/modals/SendEmailModal";
 import { deleteLead } from "@/app/actions/leads";
 import { daysAgo, toDateInputValue } from "@/lib/format";
 
@@ -84,6 +85,12 @@ export default async function LeadsPage() {
               <Td>
                 <div className="flex items-center gap-2">
                   {lead.status === "new" && <ConvertButton leadId={lead.id} />}
+                  <SendEmailModal
+                    triggerLabel="Email"
+                    defaultTo={lead.email}
+                    defaultSubject=""
+                    defaultMessage=""
+                  />
                   <DeleteButton
                     onDelete={deleteLead.bind(null, lead.id)}
                     confirmText={`Delete the lead "${lead.name}"? This can't be undone.`}

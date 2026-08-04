@@ -11,6 +11,7 @@ import {
 import { Button, Field, Input, Table, Td, Th, Tag } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { DeleteButton } from "@/components/DeleteButton";
+import { SendEmailModal } from "@/components/modals/SendEmailModal";
 import { daysAgo, fmtDate, toDateInputValue } from "@/lib/format";
 
 type Contact = {
@@ -140,7 +141,19 @@ export function ContactsTable({
                   }}
                 />
               )}
-              <Button onClick={() => setSelectedId(null)}>Close</Button>
+              <div className="flex items-center gap-2">
+                {loadedDetail && (
+                  <SendEmailModal
+                    triggerLabel="Send email"
+                    defaultTo={loadedDetail.email}
+                    defaultSubject=""
+                    defaultMessage=""
+                    contactId={loadedDetail.id}
+                    onSent={refreshDetail}
+                  />
+                )}
+                <Button onClick={() => setSelectedId(null)}>Close</Button>
+              </div>
             </div>
           }
         >

@@ -18,6 +18,7 @@ export async function GET(
       tasks: { orderBy: { order: "asc" } },
       activities: { orderBy: { ts: "desc" } },
       lineItems: { orderBy: { order: "asc" } },
+      contactRecord: { select: { email: true } },
     },
   });
 
@@ -25,5 +26,6 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json(deal);
+  const { contactRecord, ...rest } = deal;
+  return NextResponse.json({ ...rest, contactEmail: contactRecord?.email ?? "" });
 }

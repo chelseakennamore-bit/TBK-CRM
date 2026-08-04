@@ -15,7 +15,7 @@ export async function GET(
   const invoice = await prisma.invoice.findUnique({
     where: { id },
     include: {
-      deal: { select: { id: true, title: true } },
+      deal: { select: { id: true, title: true, contactRecord: { select: { email: true } } } },
       activities: { orderBy: { ts: "desc" } },
     },
   });
@@ -24,5 +24,10 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json(invoice);
+  const { deal, ...rest } = invoice;
+  return NextResponse.json({
+    ...rest,
+    deal: deal ? { id: deal.id, title: deal.title } : null,
+    contactEmail: deal?.contactRecord?.email ?? "",
+  });
 }
