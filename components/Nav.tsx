@@ -12,6 +12,8 @@ const NAV_ITEMS = [
   { href: "/projects", label: "Projects" },
   { href: "/invoices", label: "Invoices" },
   { href: "/reports", label: "Reports" },
+  { href: "/users", label: "Users" },
+  { href: "/audit-log", label: "Audit log" },
 ];
 
 export function Nav({ signOutAction }: { signOutAction: () => void }) {

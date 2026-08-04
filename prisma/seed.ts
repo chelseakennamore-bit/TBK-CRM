@@ -18,11 +18,12 @@ function daysFromNow(n: number) {
 async function main() {
   const adminEmail = process.env.ADMIN_EMAIL ?? "admin@tbkconsulting.com";
   const adminPassword = process.env.ADMIN_PASSWORD ?? "changeme123";
+  const adminName = process.env.ADMIN_NAME ?? "Admin";
   const passwordHash = await bcrypt.hash(adminPassword, 10);
   await prisma.user.upsert({
     where: { email: adminEmail },
     update: {},
-    create: { email: adminEmail, passwordHash },
+    create: { email: adminEmail, passwordHash, name: adminName },
   });
 
   const leadCount = await prisma.lead.count();

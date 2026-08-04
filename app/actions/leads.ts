@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAuth } from "@/lib/authGuard";
+import { logAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { fetchSheetTab, rowsToObjects } from "@/lib/googleSheets";
 import { notifyNewLead } from "@/lib/webhooks";
@@ -16,7 +17,7 @@ function revalidateLeadViews() {
 }
 
 export async function createLead(formData: FormData) {
-  await requireAuth();
+  const session = await requireAuth();
   const name = String(formData.get("name") || "").trim() || "New contact";
   const company = String(formData.get("company") || "").trim() || "—";
   const email = String(formData.get("email") || "").trim();
@@ -24,6 +25,12 @@ export async function createLead(formData: FormData) {
 
   const lead = await prisma.lead.create({
     data: { name, company, email, message, source: "Manual entry", status: "new" },
+  });
+  await logAudit(session, {
+    action: "create",
+    entityType: "Lead",
+    entityId: lead.id,
+    entityLabel: lead.name,
   });
   revalidateLeadViews();
   await notifyNewLead(lead);
@@ -40,7 +47,7 @@ export async function updateLeadFollowUp(leadId: string, nextFollowUpAt: string)
 }
 
 export async function importLeadsCsv(formData: FormData) {
-  await requireAuth();
+  const session = await requireAuth();
   const text = String(formData.get("csvText") || "");
   const rows = text
     .split("\n")
@@ -63,6 +70,13 @@ export async function importLeadsCsv(formData: FormData) {
 
   if (leads.length > 0) {
     const created = await prisma.lead.createManyAndReturn({ data: leads });
+    await logAudit(session, {
+      action: "create",
+      entityType: "Lead",
+      entityId: "bulk",
+      entityLabel: `${created.length} lead${created.length === 1 ? "" : "s"}`,
+      detail: "Imported via CSV",
+    });
     revalidateLeadViews();
     for (const lead of created) {
       await notifyNewLead(lead);
@@ -178,18 +192,25 @@ export async function syncNow(): Promise<{ importedCount: number }> {
 }
 
 export async function deleteLead(leadId: string): Promise<{ ok: boolean; error?: string }> {
-  await requireAuth();
+  const session = await requireAuth();
+  let lead;
   try {
-    await prisma.lead.delete({ where: { id: leadId } });
+    lead = await prisma.lead.delete({ where: { id: leadId } });
   } catch {
     return { ok: false, error: "Couldn't delete this lead. It may have already been removed." };
   }
+  await logAudit(session, {
+    action: "delete",
+    entityType: "Lead",
+    entityId: lead.id,
+    entityLabel: lead.name,
+  });
   revalidateLeadViews();
   return { ok: true };
 }
 
 export async function convertLead(leadId: string) {
-  await requireAuth();
+  const session = await requireAuth();
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead) return;
 
@@ -201,7 +222,7 @@ export async function convertLead(leadId: string) {
     companyId
   );
 
-  await prisma.$transaction([
+  const [, deal] = await prisma.$transaction([
     prisma.lead.update({
       where: { id: leadId },
       data: { status: "in_pipeline" },
@@ -220,6 +241,21 @@ export async function convertLead(leadId: string) {
       },
     }),
   ]);
+
+  await logAudit(session, {
+    action: "status_change",
+    entityType: "Lead",
+    entityId: lead.id,
+    entityLabel: lead.name,
+    detail: "Converted to deal",
+  });
+  await logAudit(session, {
+    action: "create",
+    entityType: "Deal",
+    entityId: deal.id,
+    entityLabel: deal.title,
+    detail: `From converted lead "${lead.name}"`,
+  });
 
   revalidateLeadViews();
   revalidatePath("/deals");

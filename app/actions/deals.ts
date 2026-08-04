@@ -1,6 +1,7 @@
 "use server";
 
 import { requireAuth } from "@/lib/authGuard";
+import { logAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { findOrCreateCompanyId } from "@/app/actions/companies";
@@ -15,7 +16,7 @@ function revalidateDealViews() {
 }
 
 export async function createDeal(formData: FormData) {
-  await requireAuth();
+  const session = await requireAuth();
   const title = String(formData.get("title") || "").trim() || "New Engagement";
   const company = String(formData.get("company") || "").trim() || "—";
   const contactName = String(formData.get("contactName") || "").trim() || "—";
@@ -25,7 +26,7 @@ export async function createDeal(formData: FormData) {
   const revenueStream = String(formData.get("revenueStream") || "").trim();
   const companyId = await findOrCreateCompanyId(company);
 
-  await prisma.deal.create({
+  const deal = await prisma.deal.create({
     data: {
       title,
       company,
@@ -39,11 +40,17 @@ export async function createDeal(formData: FormData) {
       closeDate: closeDateRaw ? new Date(closeDateRaw) : null,
     },
   });
+  await logAudit(session, {
+    action: "create",
+    entityType: "Deal",
+    entityId: deal.id,
+    entityLabel: deal.title,
+  });
   revalidateDealViews();
 }
 
 export async function updateDealStage(dealId: string, stage: string) {
-  await requireAuth();
+  const session = await requireAuth();
   const deal = await prisma.deal.update({
     where: { id: dealId },
     data: {
@@ -52,6 +59,13 @@ export async function updateDealStage(dealId: string, stage: string) {
       activities: { create: [{ text: `Stage changed to ${stage}` }] },
     },
   });
+  await logAudit(session, {
+    action: "status_change",
+    entityType: "Deal",
+    entityId: deal.id,
+    entityLabel: deal.title,
+    detail: `Stage changed to ${stage}`,
+  });
 
   if (stage === "Won") {
     const existingProject = await prisma.project.findFirst({
@@ -59,7 +73,7 @@ export async function updateDealStage(dealId: string, stage: string) {
       select: { id: true },
     });
     if (!existingProject) {
-      await prisma.project.create({
+      const project = await prisma.project.create({
         data: {
           name: deal.title,
           client: deal.company,
@@ -73,6 +87,13 @@ export async function updateDealStage(dealId: string, stage: string) {
           },
         },
       });
+      await logAudit(session, {
+        action: "create",
+        entityType: "Project",
+        entityId: project.id,
+        entityLabel: project.name,
+        detail: `Automatically created when deal "${deal.title}" was won`,
+      });
       revalidatePath("/projects");
     }
   }
@@ -81,7 +102,7 @@ export async function updateDealStage(dealId: string, stage: string) {
 }
 
 export async function deleteDeal(dealId: string): Promise<{ ok: boolean; error?: string }> {
-  await requireAuth();
+  const session = await requireAuth();
   const [projectCount, invoiceCount] = await Promise.all([
     prisma.project.count({ where: { dealId } }),
     prisma.invoice.count({ where: { dealId } }),
@@ -96,11 +117,18 @@ export async function deleteDeal(dealId: string): Promise<{ ok: boolean; error?:
     };
   }
 
+  let deal;
   try {
-    await prisma.deal.delete({ where: { id: dealId } });
+    deal = await prisma.deal.delete({ where: { id: dealId } });
   } catch {
     return { ok: false, error: "Couldn't delete this deal. It may have already been removed." };
   }
+  await logAudit(session, {
+    action: "delete",
+    entityType: "Deal",
+    entityId: deal.id,
+    entityLabel: deal.title,
+  });
   revalidateDealViews();
   return { ok: true };
 }
