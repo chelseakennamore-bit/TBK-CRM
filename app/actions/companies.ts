@@ -67,6 +67,22 @@ export async function deleteCompany(companyId: string): Promise<{ ok: boolean; e
   return { ok: true };
 }
 
+export async function addCompanyNote(companyId: string, text: string) {
+  await requireAuth();
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  await prisma.activity.create({ data: { companyId, text: trimmed } });
+}
+
+export async function setPrimaryContact(companyId: string, contactId: string | null) {
+  await requireAuth();
+  await prisma.company.update({
+    where: { id: companyId },
+    data: { primaryContactId: contactId || null },
+  });
+  revalidatePath("/companies");
+}
+
 export async function updateCompanyDetails(
   companyId: string,
   data: {
