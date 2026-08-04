@@ -64,6 +64,10 @@ model Lead {
   source         String
   receivedAt     DateTime  @default(now())
   status         String    @default("new") // new | in_pipeline | closed
+  // Free-text note on why a lead was closed (e.g. "Disqualified", "Not a
+  // fit", "No response") -- kept as an open field rather than a fixed set
+  // of reasons, same tradeoff as Deal.closedLostReason.
+  closedReason   String    @default("")
   nextFollowUpAt DateTime?
   // Stable identifier for rows pulled in from an external source (e.g. a
   // Google Sheet tab + row timestamp + email), used to avoid re-importing

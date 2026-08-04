@@ -224,7 +224,9 @@ export async function setLeadClosed(
   try {
     lead = await prisma.lead.update({
       where: { id: leadId },
-      data: { status: closed ? "closed" : "new" },
+      // Reopening clears the reason -- it no longer applies once the lead
+      // is active again, and would otherwise mislead the next time it's closed.
+      data: { status: closed ? "closed" : "new", closedReason: closed ? undefined : "" },
     });
   } catch {
     return { ok: false, error: "Couldn't update this lead. It may have already been removed." };
@@ -238,6 +240,15 @@ export async function setLeadClosed(
   });
   revalidateLeadViews();
   return { ok: true };
+}
+
+export async function updateLeadClosedReason(leadId: string, closedReason: string) {
+  await requireAuth();
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: { closedReason: closedReason.trim() },
+  });
+  revalidatePath("/leads");
 }
 
 export async function convertLead(leadId: string) {
