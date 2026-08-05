@@ -2,6 +2,7 @@
 
 import { requireAuth } from "@/lib/authGuard";
 import { sendEmail as sendEmailRaw } from "@/lib/email";
+import { renderCrmEmailHtml, type EmailKind } from "@/lib/emailTemplates";
 import { prisma } from "@/lib/prisma";
 
 // Sends a one-off email from the CRM (a quick note to a contact/lead, an
@@ -25,8 +26,11 @@ export async function sendCrmEmail(params: {
     return { ok: false, error: "To, subject, and message are all required." };
   }
 
+  const kind: EmailKind = params.invoiceId ? "invoice" : params.dealId ? "quote" : "note";
+  const html = renderCrmEmailHtml({ kind, message });
+
   try {
-    await sendEmailRaw({ to, subject, text: message });
+    await sendEmailRaw({ to, subject, text: message, html });
   } catch (err) {
     return {
       ok: false,
