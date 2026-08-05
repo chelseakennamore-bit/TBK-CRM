@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { findOrCreateCompanyId } from "@/app/actions/companies";
+import { createCustomerFolder } from "@/lib/googleDrive";
 import { STAGE_PROBABILITY } from "@/lib/constants";
 
 function revalidateDealViews() {
@@ -94,6 +95,15 @@ export async function updateDealStage(dealId: string, stage: string) {
         entityLabel: project.name,
         detail: `Automatically created when deal "${deal.title}" was won`,
       });
+
+      const folderUrl = await createCustomerFolder(`${deal.company} — ${deal.title}`);
+      if (folderUrl) {
+        await prisma.project.update({
+          where: { id: project.id },
+          data: { driveFolderUrl: folderUrl },
+        });
+      }
+
       revalidatePath("/projects");
     }
   }

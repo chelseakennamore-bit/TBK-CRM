@@ -242,6 +242,10 @@ model Project {
   // contractedValue (planned) -- same lightweight "consultant types in a
   // number" approach as contractedValue itself, not a time-tracking system.
   actualCost      Float      @default(0)
+  // Set automatically when a Google Drive customer folder is created on
+  // deal Won (see lib/googleDrive.ts). Empty until Drive is configured --
+  // that integration is best-effort and must never block a deal closing.
+  driveFolderUrl  String     @default("")
   dealId          String?
   deal            Deal?      @relation(fields: [dealId], references: [id])
   subtasks        Subtask[]

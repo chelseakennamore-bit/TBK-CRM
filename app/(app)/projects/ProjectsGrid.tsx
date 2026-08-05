@@ -23,7 +23,7 @@ import {
   updateRiskMitigation,
   updateRiskStatus,
 } from "@/app/actions/projects";
-import { Button, Card, Field, Input, Select, Tag, Textarea } from "@/components/ui";
+import { Button, Card, Field, Input, LinkButton, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { DeleteButton } from "@/components/DeleteButton";
 import { SendEmailModal } from "@/components/modals/SendEmailModal";
@@ -71,6 +71,7 @@ type ProjectDetail = ProjectSummary & {
   notes: string;
   contractedValue: number;
   actualCost: number;
+  driveFolderUrl: string;
   activities: Activity[];
   deliverables: Deliverable[];
   milestones: Milestone[];
@@ -225,6 +226,11 @@ export function ProjectsGrid({
               <div className="flex items-center gap-2">
                 {loadedDetail && (
                   <>
+                    {loadedDetail.driveFolderUrl && (
+                      <LinkButton href={loadedDetail.driveFolderUrl} target="_blank">
+                        View in Drive
+                      </LinkButton>
+                    )}
                     <AddInvoiceModal
                       triggerLabel="New invoice"
                       wonDeals={wonDeals}
