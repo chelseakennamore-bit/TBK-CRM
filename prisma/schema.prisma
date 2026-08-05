@@ -241,7 +241,20 @@ model Project {
   deal            Deal?      @relation(fields: [dealId], references: [id])
   subtasks        Subtask[]
   activities      Activity[]
+  deliverables    Deliverable[]
   createdAt       DateTime   @default(now())
+}
+
+// A dated log of what's actually been delivered on the engagement,
+// distinct from the single free-text "next deliverable" field -- that
+// one tracks what's coming up, this tracks what's already shipped.
+model Deliverable {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  deliveredAt DateTime @default(now())
+  createdAt   DateTime @default(now())
 }
 
 model Subtask {

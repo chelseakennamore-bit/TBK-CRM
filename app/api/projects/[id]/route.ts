@@ -17,6 +17,7 @@ export async function GET(
     include: {
       subtasks: { orderBy: { order: "asc" } },
       activities: { orderBy: { ts: "desc" } },
+      deliverables: { orderBy: { deliveredAt: "desc" } },
       contactRecord: { select: { email: true } },
       deal: {
         select: {
