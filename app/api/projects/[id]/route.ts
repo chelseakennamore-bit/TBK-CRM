@@ -18,6 +18,12 @@ export async function GET(
       subtasks: { orderBy: { order: "asc" } },
       activities: { orderBy: { ts: "desc" } },
       deliverables: { orderBy: { deliveredAt: "desc" } },
+      milestones: { orderBy: { order: "asc" } },
+      risks: { orderBy: { createdAt: "desc" } },
+      stakeholders: {
+        orderBy: { createdAt: "asc" },
+        include: { contact: { select: { id: true, name: true, email: true } } },
+      },
       contactRecord: { select: { email: true } },
       deal: {
         select: {

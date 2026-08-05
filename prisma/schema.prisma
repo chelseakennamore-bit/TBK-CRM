@@ -125,6 +125,7 @@ model Contact {
   activities        Activity[]
   deals             Deal[]
   projects          Project[]
+  projectStakeholderFor ProjectStakeholder[]
   createdAt         DateTime   @default(now())
 }
 
@@ -237,12 +238,60 @@ model Project {
   // Committed budget for the engagement. Defaults from the deal's value
   // when a project is auto-created on Won; editable afterward.
   contractedValue Float      @default(0)
+  // Costs/hours actually incurred so far, tracked manually against
+  // contractedValue (planned) -- same lightweight "consultant types in a
+  // number" approach as contractedValue itself, not a time-tracking system.
+  actualCost      Float      @default(0)
   dealId          String?
   deal            Deal?      @relation(fields: [dealId], references: [id])
   subtasks        Subtask[]
   activities      Activity[]
   deliverables    Deliverable[]
+  milestones      Milestone[]
+  risks           RiskLogEntry[]
+  stakeholders    ProjectStakeholder[]
   createdAt       DateTime   @default(now())
+}
+
+// A named phase/milestone within a project's delivery timeline, so
+// progress can be tracked at a coarser grain than individual tasks.
+model Milestone {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  status    String    @default("Not started") // Not started | In progress | Complete
+  dueDate   DateTime?
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+}
+
+// A lightweight risk register: identified risks/issues per project,
+// kept separate from general working notes so they're easy to scan.
+model RiskLogEntry {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  description String
+  severity    String   @default("Medium") // Low | Medium | High
+  status      String   @default("Open") // Open | Mitigated | Closed
+  mitigation  String   @default("")
+  createdAt   DateTime @default(now())
+}
+
+// Named contacts involved in a project beyond the single primary
+// "Contact" field, each with a role (sponsor, approver, day-to-day
+// contact, etc.).
+model ProjectStakeholder {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  role      String   @default("")
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, contactId])
 }
 
 // A dated log of what's actually been delivered on the engagement,

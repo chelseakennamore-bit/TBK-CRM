@@ -75,6 +75,7 @@ export async function updateProjectDetails(
     nextMeetingAt?: string;
     notes?: string;
     contractedValue?: number;
+    actualCost?: number;
     dueDate?: string;
   }
 ) {
@@ -89,6 +90,7 @@ export async function updateProjectDetails(
         : {}),
       ...(data.notes !== undefined ? { notes: data.notes } : {}),
       ...(data.contractedValue !== undefined ? { contractedValue: data.contractedValue } : {}),
+      ...(data.actualCost !== undefined ? { actualCost: data.actualCost } : {}),
       ...(data.dueDate !== undefined
         ? { dueDate: data.dueDate ? new Date(data.dueDate) : null }
         : {}),
@@ -178,4 +180,85 @@ export async function addDeliverable(projectId: string, name: string, deliveredA
   });
   revalidatePath("/projects");
   return { ...deliverable, deliveredAt: deliverable.deliveredAt.toISOString() };
+}
+
+export async function addMilestone(projectId: string, name: string, dueDate: string) {
+  await requireAuth();
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const count = await prisma.milestone.count({ where: { projectId } });
+  const milestone = await prisma.milestone.create({
+    data: {
+      projectId,
+      name: trimmed,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      order: count,
+    },
+  });
+  revalidatePath("/projects");
+  return { ...milestone, dueDate: milestone.dueDate ? milestone.dueDate.toISOString() : null };
+}
+
+export async function updateMilestoneStatus(milestoneId: string, status: string) {
+  await requireAuth();
+  await prisma.milestone.update({ where: { id: milestoneId }, data: { status } });
+  revalidatePath("/projects");
+}
+
+export async function deleteMilestone(milestoneId: string) {
+  await requireAuth();
+  await prisma.milestone.delete({ where: { id: milestoneId } }).catch(() => null);
+  revalidatePath("/projects");
+}
+
+export async function addRisk(projectId: string, description: string, severity: string) {
+  await requireAuth();
+  const trimmed = description.trim();
+  if (!trimmed) return null;
+  const risk = await prisma.riskLogEntry.create({
+    data: { projectId, description: trimmed, severity },
+  });
+  revalidatePath("/projects");
+  return risk;
+}
+
+export async function updateRiskStatus(riskId: string, status: string) {
+  await requireAuth();
+  await prisma.riskLogEntry.update({ where: { id: riskId }, data: { status } });
+  revalidatePath("/projects");
+}
+
+export async function updateRiskMitigation(riskId: string, mitigation: string) {
+  await requireAuth();
+  await prisma.riskLogEntry.update({ where: { id: riskId }, data: { mitigation } });
+  revalidatePath("/projects");
+}
+
+export async function deleteRisk(riskId: string) {
+  await requireAuth();
+  await prisma.riskLogEntry.delete({ where: { id: riskId } }).catch(() => null);
+  revalidatePath("/projects");
+}
+
+export async function addStakeholder(projectId: string, contactId: string, role: string) {
+  await requireAuth();
+  if (!contactId) return null;
+  let stakeholder;
+  try {
+    stakeholder = await prisma.projectStakeholder.create({
+      data: { projectId, contactId, role: role.trim() },
+      include: { contact: { select: { id: true, name: true, email: true } } },
+    });
+  } catch {
+    // Unique constraint on [projectId, contactId] -- already a stakeholder.
+    return null;
+  }
+  revalidatePath("/projects");
+  return stakeholder;
+}
+
+export async function removeStakeholder(stakeholderId: string) {
+  await requireAuth();
+  await prisma.projectStakeholder.delete({ where: { id: stakeholderId } }).catch(() => null);
+  revalidatePath("/projects");
 }

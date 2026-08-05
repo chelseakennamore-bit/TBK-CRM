@@ -3,16 +3,25 @@
 import { useEffect, useState } from "react";
 import {
   addDeliverable,
+  addMilestone,
   addProjectNote,
+  addRisk,
+  addStakeholder,
   addSubtask,
+  deleteMilestone,
   deleteProject,
+  deleteRisk,
   deleteSubtask,
+  removeStakeholder,
   toggleSubtask,
+  updateMilestoneStatus,
   updateProjectCompany,
   updateProjectContact,
   updateProjectDetails,
   updateProjectName,
   updateProjectStatus,
+  updateRiskMitigation,
+  updateRiskStatus,
 } from "@/app/actions/projects";
 import { Button, Card, Field, Input, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
@@ -20,7 +29,13 @@ import { DeleteButton } from "@/components/DeleteButton";
 import { SendEmailModal } from "@/components/modals/SendEmailModal";
 import { AddInvoiceModal } from "@/components/modals/AddInvoiceModal";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
-import { PROJECT_HEALTH, PROJECT_STATUSES } from "@/lib/constants";
+import {
+  MILESTONE_STATUSES,
+  PROJECT_HEALTH,
+  PROJECT_STATUSES,
+  RISK_SEVERITIES,
+  RISK_STATUSES,
+} from "@/lib/constants";
 
 type ContactOption = { id: string; name: string; company: string };
 type DealOption = { id: string; title: string };
@@ -47,13 +62,20 @@ type ProjectSummary = {
 type Activity = { id: string; text: string; ts: string };
 type Invoice = { id: string; amount: number; status: string; dueDate: string | null };
 type Deliverable = { id: string; name: string; deliveredAt: string };
+type Milestone = { id: string; name: string; status: string; dueDate: string | null };
+type Risk = { id: string; description: string; severity: string; status: string; mitigation: string };
+type Stakeholder = { id: string; role: string; contact: { id: string; name: string; email: string } };
 type ProjectDetail = ProjectSummary & {
   contactId: string | null;
   contactEmail: string;
   notes: string;
   contractedValue: number;
+  actualCost: number;
   activities: Activity[];
   deliverables: Deliverable[];
+  milestones: Milestone[];
+  risks: Risk[];
+  stakeholders: Stakeholder[];
   deal: { id: string; title: string; stage: string; invoices: Invoice[] } | null;
 };
 
@@ -68,6 +90,18 @@ const HEALTH_DOT: Record<string, string> = {
   Green: "bg-emerald-500",
   Yellow: "bg-amber-500",
   Red: "bg-rose-500",
+};
+
+const SEVERITY_TAG: Record<string, "neutral" | "accent-2" | "accent"> = {
+  Low: "neutral",
+  Medium: "accent",
+  High: "accent-2",
+};
+
+const RISK_STATUS_TAG: Record<string, "accent-2" | "accent" | "outline"> = {
+  Open: "accent-2",
+  Mitigated: "accent",
+  Closed: "outline",
 };
 
 export function ProjectsGrid({
@@ -251,6 +285,7 @@ function ProjectDetailBody({
   const [health, setHealth] = useState(detail.health);
   const [dueDate, setDueDate] = useState(toDateInputValue(detail.dueDate));
   const [contractedValue, setContractedValue] = useState(String(detail.contractedValue));
+  const [actualCost, setActualCost] = useState(String(detail.actualCost));
   const [nextDeliverable, setNextDeliverable] = useState(detail.nextDeliverable);
   const [nextMeetingAt, setNextMeetingAt] = useState(toDateInputValue(detail.nextMeetingAt));
   const [notes, setNotes] = useState(detail.notes);
@@ -262,6 +297,18 @@ function ProjectDetailBody({
   const [newDeliverable, setNewDeliverable] = useState("");
   const [newDeliverableDate, setNewDeliverableDate] = useState(toDateInputValue(new Date().toISOString()));
   const [deliverablePending, setDeliverablePending] = useState(false);
+  const [milestones, setMilestones] = useState(detail.milestones);
+  const [newMilestone, setNewMilestone] = useState("");
+  const [newMilestoneDue, setNewMilestoneDue] = useState("");
+  const [milestonePending, setMilestonePending] = useState(false);
+  const [risks, setRisks] = useState(detail.risks);
+  const [newRisk, setNewRisk] = useState("");
+  const [newRiskSeverity, setNewRiskSeverity] = useState<string>(RISK_SEVERITIES[1]);
+  const [riskPending, setRiskPending] = useState(false);
+  const [stakeholders, setStakeholders] = useState(detail.stakeholders);
+  const [newStakeholderId, setNewStakeholderId] = useState("");
+  const [newStakeholderRole, setNewStakeholderRole] = useState("");
+  const [stakeholderPending, setStakeholderPending] = useState(false);
 
   return (
     <div className="flex flex-col gap-4">
@@ -311,6 +358,74 @@ function ProjectDetailBody({
             ))}
           </Select>
         </Field>
+      </div>
+
+      <div>
+        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Stakeholders
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {stakeholders.map((s) => (
+            <div key={s.id} className="flex items-center gap-2 text-sm">
+              <span className="text-zinc-900 dark:text-zinc-100">{s.contact.name}</span>
+              {s.role && <Tag variant="neutral">{s.role}</Tag>}
+              <button
+                type="button"
+                onClick={() => {
+                  setStakeholders((prev) => prev.filter((x) => x.id !== s.id));
+                  removeStakeholder(s.id);
+                }}
+                className="ml-auto text-zinc-400 hover:text-red-500"
+                aria-label="Remove stakeholder"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {stakeholders.length === 0 && (
+            <div className="text-sm text-zinc-400">No stakeholders added yet.</div>
+          )}
+        </div>
+        <div className="mt-2 flex gap-2">
+          <div className="min-w-0 flex-1">
+            <Select
+              value={newStakeholderId}
+              onChange={(e) => setNewStakeholderId(e.target.value)}
+            >
+              <option value="">Select a contact…</option>
+              {contacts
+                .filter((c) => !stakeholders.some((s) => s.contact.id === c.id))
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.company})
+                  </option>
+                ))}
+            </Select>
+          </div>
+          <div className="w-36 shrink-0">
+            <Input
+              placeholder="Role"
+              value={newStakeholderRole}
+              onChange={(e) => setNewStakeholderRole(e.target.value)}
+            />
+          </div>
+          <Button
+            disabled={stakeholderPending}
+            onClick={async () => {
+              if (!newStakeholderId) return;
+              setStakeholderPending(true);
+              const created = await addStakeholder(detail.id, newStakeholderId, newStakeholderRole);
+              if (created) {
+                setStakeholders((prev) => [...prev, created]);
+              }
+              setNewStakeholderId("");
+              setNewStakeholderRole("");
+              setStakeholderPending(false);
+            }}
+          >
+            Add
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -372,6 +487,33 @@ function ProjectDetailBody({
             onBlur={() => updateProjectDetails(detail.id, { contractedValue: Number(contractedValue) || 0 })}
           />
         </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Actual cost so far">
+          <Input
+            type="number"
+            value={actualCost}
+            onChange={(e) => setActualCost(e.target.value)}
+            onBlur={() => updateProjectDetails(detail.id, { actualCost: Number(actualCost) || 0 })}
+          />
+        </Field>
+        <div className="pt-5 text-sm text-zinc-500 dark:text-zinc-400">
+          {(() => {
+            const variance = (Number(contractedValue) || 0) - (Number(actualCost) || 0);
+            return variance >= 0 ? (
+              <span>
+                <span className="font-semibold text-zinc-900 dark:text-zinc-50">{money(variance)}</span>{" "}
+                under budget
+              </span>
+            ) : (
+              <span>
+                <span className="font-semibold text-rose-600 dark:text-rose-400">{money(-variance)}</span>{" "}
+                over budget
+              </span>
+            );
+          })()}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -443,6 +585,88 @@ function ProjectDetailBody({
           </div>
         </div>
       )}
+
+      <div>
+        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Milestones
+        </div>
+        <div className="flex flex-col gap-2">
+          {milestones.map((m) => (
+            <div key={m.id} className="flex items-center gap-2 text-sm">
+              <span className="min-w-0 flex-1 truncate text-zinc-900 dark:text-zinc-100">
+                {m.name}
+              </span>
+              <span className="shrink-0 text-[11px] text-zinc-500 dark:text-zinc-400">
+                {fmtDate(m.dueDate)}
+              </span>
+              <div className="w-32 shrink-0">
+                <Select
+                  value={m.status}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setMilestones((prev) =>
+                      prev.map((x) => (x.id === m.id ? { ...x, status: next } : x))
+                    );
+                    updateMilestoneStatus(m.id, next);
+                  }}
+                >
+                  {MILESTONE_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMilestones((prev) => prev.filter((x) => x.id !== m.id));
+                  deleteMilestone(m.id);
+                }}
+                className="shrink-0 text-zinc-400 hover:text-red-500"
+                aria-label="Delete milestone"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {milestones.length === 0 && (
+            <div className="text-sm text-zinc-400">No milestones yet.</div>
+          )}
+        </div>
+        <div className="mt-2 flex gap-2">
+          <div className="min-w-0 flex-1">
+            <Input
+              placeholder="e.g. Discovery, Design, Delivery"
+              value={newMilestone}
+              onChange={(e) => setNewMilestone(e.target.value)}
+            />
+          </div>
+          <div className="w-36 shrink-0">
+            <Input
+              type="date"
+              value={newMilestoneDue}
+              onChange={(e) => setNewMilestoneDue(e.target.value)}
+            />
+          </div>
+          <Button
+            disabled={milestonePending}
+            onClick={async () => {
+              if (!newMilestone.trim()) return;
+              setMilestonePending(true);
+              const created = await addMilestone(detail.id, newMilestone, newMilestoneDue);
+              if (created) {
+                setMilestones((prev) => [...prev, created]);
+              }
+              setNewMilestone("");
+              setNewMilestoneDue("");
+              setMilestonePending(false);
+            }}
+          >
+            Add
+          </Button>
+        </div>
+      </div>
 
       <div>
         <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
@@ -573,6 +797,104 @@ function ProjectDetailBody({
               }
               setNewDeliverable("");
               setDeliverablePending(false);
+            }}
+          >
+            Add
+          </Button>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Risk log
+        </div>
+        <div className="flex flex-col gap-2">
+          {risks.map((r) => (
+            <div key={r.id} className="rounded-md border border-zinc-200 p-2.5 dark:border-zinc-800">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Tag variant={SEVERITY_TAG[r.severity] ?? "neutral"}>{r.severity}</Tag>
+                  <Tag variant={RISK_STATUS_TAG[r.status] ?? "neutral"}>{r.status}</Tag>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-28 shrink-0">
+                    <Select
+                      value={r.status}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setRisks((prev) =>
+                          prev.map((x) => (x.id === r.id ? { ...x, status: next } : x))
+                        );
+                        updateRiskStatus(r.id, next);
+                      }}
+                    >
+                      {RISK_STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRisks((prev) => prev.filter((x) => x.id !== r.id));
+                      deleteRisk(r.id);
+                    }}
+                    className="shrink-0 text-zinc-400 hover:text-red-500"
+                    aria-label="Delete risk"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              <div className="mt-1.5 text-sm text-zinc-900 dark:text-zinc-100">
+                {r.description}
+              </div>
+              <div className="mt-1.5">
+                <Input
+                  placeholder="Mitigation"
+                  defaultValue={r.mitigation}
+                  onBlur={(e) => updateRiskMitigation(r.id, e.target.value)}
+                />
+              </div>
+            </div>
+          ))}
+          {risks.length === 0 && (
+            <div className="text-sm text-zinc-400">No risks logged.</div>
+          )}
+        </div>
+        <div className="mt-2 flex gap-2">
+          <div className="min-w-0 flex-1">
+            <Input
+              placeholder="Describe a risk or issue"
+              value={newRisk}
+              onChange={(e) => setNewRisk(e.target.value)}
+            />
+          </div>
+          <div className="w-28 shrink-0">
+            <Select
+              value={newRiskSeverity}
+              onChange={(e) => setNewRiskSeverity(e.target.value)}
+            >
+              {RISK_SEVERITIES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <Button
+            disabled={riskPending}
+            onClick={async () => {
+              if (!newRisk.trim()) return;
+              setRiskPending(true);
+              const created = await addRisk(detail.id, newRisk, newRiskSeverity);
+              if (created) {
+                setRisks((prev) => [created, ...prev]);
+              }
+              setNewRisk("");
+              setRiskPending(false);
             }}
           >
             Add
