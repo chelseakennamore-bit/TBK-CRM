@@ -8,9 +8,15 @@ import { Modal } from "@/components/Modal";
 export function AddInvoiceModal({
   wonDeals,
   companyNames = [],
+  triggerLabel = "Add invoice",
+  defaultClient = "",
+  defaultDealId = "",
 }: {
   wonDeals: { id: string; title: string }[];
   companyNames?: string[];
+  triggerLabel?: string;
+  defaultClient?: string;
+  defaultDealId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [, formAction, pending] = useActionState(async (_prev: null, formData: FormData) => {
@@ -22,7 +28,7 @@ export function AddInvoiceModal({
   return (
     <>
       <Button variant="primary" onClick={() => setOpen(true)}>
-        Add invoice
+        {triggerLabel}
       </Button>
       {open && (
         <Modal
@@ -41,7 +47,7 @@ export function AddInvoiceModal({
         >
           <form id="add-invoice-form" action={formAction} className="flex flex-col gap-3">
             <Field label="Client">
-              <Input name="client" list="company-names" required />
+              <Input name="client" list="company-names" defaultValue={defaultClient} required />
               <datalist id="company-names">
                 {companyNames.map((name) => (
                   <option key={name} value={name} />
@@ -49,7 +55,7 @@ export function AddInvoiceModal({
               </datalist>
             </Field>
             <Field label="Linked deal (optional)">
-              <Select name="dealId" defaultValue="">
+              <Select name="dealId" defaultValue={defaultDealId}>
                 <option value="">None</option>
                 {wonDeals.map((d) => (
                   <option key={d.id} value={d.id}>

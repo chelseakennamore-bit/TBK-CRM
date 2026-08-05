@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { PageHeader } from "@/components/ui";
+import { LinkButton, PageHeader } from "@/components/ui";
 import { AddProjectModal } from "@/components/modals/AddProjectModal";
 import { ProjectsGrid } from "./ProjectsGrid";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
-  const [projects, companies, contacts] = await Promise.all([
+  const [projects, companies, contacts, wonDeals] = await Promise.all([
     prisma.project.findMany({
       orderBy: { createdAt: "desc" },
       include: { subtasks: { orderBy: { order: "asc" } } },
@@ -15,6 +15,11 @@ export default async function ProjectsPage() {
     prisma.contact.findMany({
       select: { id: true, name: true, company: true },
       orderBy: { name: "asc" },
+    }),
+    prisma.deal.findMany({
+      where: { stage: "Won" },
+      select: { id: true, title: true },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -41,13 +46,19 @@ export default async function ProjectsPage() {
       <PageHeader
         title="Projects"
         subtitle="Delivery work for won engagements"
-        action={<AddProjectModal />}
+        action={
+          <div className="flex gap-2">
+            <LinkButton href="/api/export/projects">Export CSV</LinkButton>
+            <AddProjectModal />
+          </div>
+        }
       />
       <ProjectsGrid
         key={initialProjects.map((p) => p.id).join(",")}
         initialProjects={initialProjects}
         companyNames={companies.map((c) => c.name)}
         contacts={contacts}
+        wonDeals={wonDeals}
       />
     </div>
   );

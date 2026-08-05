@@ -13,6 +13,7 @@ export function SendEmailModal({
   contactId,
   dealId,
   invoiceId,
+  projectId,
   onSent,
 }: {
   triggerLabel?: string;
@@ -22,6 +23,7 @@ export function SendEmailModal({
   contactId?: string;
   dealId?: string;
   invoiceId?: string;
+  projectId?: string;
   onSent?: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -69,6 +71,7 @@ export function SendEmailModal({
                     contactId,
                     dealId,
                     invoiceId,
+                    projectId,
                   });
                   setPending(false);
                   if (!result.ok) {

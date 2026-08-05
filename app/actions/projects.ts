@@ -158,3 +158,24 @@ export async function toggleSubtask(subtaskId: string, done: boolean) {
   await prisma.subtask.update({ where: { id: subtaskId }, data: { done } });
   revalidatePath("/projects");
 }
+
+export async function deleteSubtask(subtaskId: string) {
+  await requireAuth();
+  await prisma.subtask.delete({ where: { id: subtaskId } }).catch(() => null);
+  revalidatePath("/projects");
+}
+
+export async function addDeliverable(projectId: string, name: string, deliveredAt: string) {
+  await requireAuth();
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const deliverable = await prisma.deliverable.create({
+    data: {
+      projectId,
+      name: trimmed,
+      ...(deliveredAt ? { deliveredAt: new Date(deliveredAt) } : {}),
+    },
+  });
+  revalidatePath("/projects");
+  return { ...deliverable, deliveredAt: deliverable.deliveredAt.toISOString() };
+}

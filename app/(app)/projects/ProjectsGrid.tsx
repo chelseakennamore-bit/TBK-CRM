@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import {
+  addDeliverable,
   addProjectNote,
   addSubtask,
   deleteProject,
+  deleteSubtask,
   toggleSubtask,
   updateProjectCompany,
   updateProjectContact,
@@ -15,10 +17,13 @@ import {
 import { Button, Card, Field, Input, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { DeleteButton } from "@/components/DeleteButton";
+import { SendEmailModal } from "@/components/modals/SendEmailModal";
+import { AddInvoiceModal } from "@/components/modals/AddInvoiceModal";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
 import { PROJECT_HEALTH, PROJECT_STATUSES } from "@/lib/constants";
 
 type ContactOption = { id: string; name: string; company: string };
+type DealOption = { id: string; title: string };
 
 type Subtask = {
   id: string;
@@ -41,11 +46,14 @@ type ProjectSummary = {
 
 type Activity = { id: string; text: string; ts: string };
 type Invoice = { id: string; amount: number; status: string; dueDate: string | null };
+type Deliverable = { id: string; name: string; deliveredAt: string };
 type ProjectDetail = ProjectSummary & {
   contactId: string | null;
+  contactEmail: string;
   notes: string;
   contractedValue: number;
   activities: Activity[];
+  deliverables: Deliverable[];
   deal: { id: string; title: string; stage: string; invoices: Invoice[] } | null;
 };
 
@@ -66,10 +74,12 @@ export function ProjectsGrid({
   initialProjects,
   companyNames = [],
   contacts = [],
+  wonDeals = [],
 }: {
   initialProjects: ProjectSummary[];
   companyNames?: string[];
   contacts?: ContactOption[];
+  wonDeals?: DealOption[];
 }) {
   const [projects, setProjects] = useState(initialProjects);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -178,7 +188,28 @@ export function ProjectsGrid({
                   }}
                 />
               )}
-              <Button onClick={() => setSelectedId(null)}>Close</Button>
+              <div className="flex items-center gap-2">
+                {loadedDetail && (
+                  <>
+                    <AddInvoiceModal
+                      triggerLabel="New invoice"
+                      wonDeals={wonDeals}
+                      companyNames={companyNames}
+                      defaultClient={loadedDetail.client}
+                      defaultDealId={loadedDetail.deal?.id ?? ""}
+                    />
+                    <SendEmailModal
+                      triggerLabel="Send email"
+                      defaultTo={loadedDetail.contactEmail}
+                      defaultSubject=""
+                      defaultMessage=""
+                      contactId={loadedDetail.contactId ?? undefined}
+                      projectId={loadedDetail.id}
+                    />
+                  </>
+                )}
+                <Button onClick={() => setSelectedId(null)}>Close</Button>
+              </div>
             </div>
           }
         >
@@ -227,6 +258,10 @@ function ProjectDetailBody({
   const [newTask, setNewTask] = useState("");
   const [newTaskDue, setNewTaskDue] = useState("");
   const [taskPending, setTaskPending] = useState(false);
+  const [deliverables, setDeliverables] = useState(detail.deliverables);
+  const [newDeliverable, setNewDeliverable] = useState("");
+  const [newDeliverableDate, setNewDeliverableDate] = useState(toDateInputValue(new Date().toISOString()));
+  const [deliverablePending, setDeliverablePending] = useState(false);
 
   return (
     <div className="flex flex-col gap-4">
@@ -415,32 +450,47 @@ function ProjectDetailBody({
         </div>
         <div className="flex flex-col gap-2">
           {detail.subtasks.map((task) => (
-            <label key={task.id} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={task.done}
-                onChange={(e) => {
-                  const done = e.target.checked;
-                  onFieldsCommit({
-                    subtasks: detail.subtasks.map((t) =>
-                      t.id === task.id ? { ...t, done } : t
-                    ),
-                  });
-                  toggleSubtask(task.id, done);
-                }}
-              />
-              <span
-                className={
-                  "flex-1 " +
-                  (task.done ? "text-zinc-400 line-through" : "text-zinc-900 dark:text-zinc-100")
-                }
-              >
-                {task.text}
-              </span>
-              <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+            <div key={task.id} className="flex items-center gap-2 text-sm">
+              <label className="flex flex-1 min-w-0 cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={task.done}
+                  onChange={(e) => {
+                    const done = e.target.checked;
+                    onFieldsCommit({
+                      subtasks: detail.subtasks.map((t) =>
+                        t.id === task.id ? { ...t, done } : t
+                      ),
+                    });
+                    toggleSubtask(task.id, done);
+                  }}
+                />
+                <span
+                  className={
+                    "flex-1 truncate " +
+                    (task.done ? "text-zinc-400 line-through" : "text-zinc-900 dark:text-zinc-100")
+                  }
+                >
+                  {task.text}
+                </span>
+              </label>
+              <span className="shrink-0 text-[11px] text-zinc-500 dark:text-zinc-400">
                 {fmtDate(task.dueDate)}
               </span>
-            </label>
+              <button
+                type="button"
+                onClick={() => {
+                  onFieldsCommit({
+                    subtasks: detail.subtasks.filter((t) => t.id !== task.id),
+                  });
+                  deleteSubtask(task.id);
+                }}
+                className="shrink-0 text-zinc-400 hover:text-red-500"
+                aria-label="Delete task"
+              >
+                ×
+              </button>
+            </div>
           ))}
           {detail.subtasks.length === 0 && (
             <div className="text-sm text-zinc-400">No tasks yet.</div>
@@ -473,6 +523,56 @@ function ProjectDetailBody({
               setNewTask("");
               setNewTaskDue("");
               setTaskPending(false);
+            }}
+          >
+            Add
+          </Button>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          Deliverables
+        </div>
+        <div className="flex flex-col gap-2">
+          {deliverables.map((d) => (
+            <div key={d.id} className="flex items-center justify-between text-sm">
+              <span className="text-zinc-900 dark:text-zinc-100">{d.name}</span>
+              <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                {fmtDate(d.deliveredAt)}
+              </span>
+            </div>
+          ))}
+          {deliverables.length === 0 && (
+            <div className="text-sm text-zinc-400">No deliverables logged yet.</div>
+          )}
+        </div>
+        <div className="mt-2 flex gap-2">
+          <div className="min-w-0 flex-1">
+            <Input
+              placeholder="Add a delivered item"
+              value={newDeliverable}
+              onChange={(e) => setNewDeliverable(e.target.value)}
+            />
+          </div>
+          <div className="w-36 shrink-0">
+            <Input
+              type="date"
+              value={newDeliverableDate}
+              onChange={(e) => setNewDeliverableDate(e.target.value)}
+            />
+          </div>
+          <Button
+            disabled={deliverablePending}
+            onClick={async () => {
+              if (!newDeliverable.trim()) return;
+              setDeliverablePending(true);
+              const created = await addDeliverable(detail.id, newDeliverable, newDeliverableDate);
+              if (created) {
+                setDeliverables((prev) => [created, ...prev]);
+              }
+              setNewDeliverable("");
+              setDeliverablePending(false);
             }}
           >
             Add
