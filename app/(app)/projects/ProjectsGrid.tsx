@@ -15,10 +15,13 @@ import {
 import { Button, Card, Field, Input, Select, Tag, Textarea } from "@/components/ui";
 import { Modal } from "@/components/Modal";
 import { DeleteButton } from "@/components/DeleteButton";
+import { SendEmailModal } from "@/components/modals/SendEmailModal";
+import { AddInvoiceModal } from "@/components/modals/AddInvoiceModal";
 import { daysAgo, fmtDate, money, toDateInputValue } from "@/lib/format";
 import { PROJECT_HEALTH, PROJECT_STATUSES } from "@/lib/constants";
 
 type ContactOption = { id: string; name: string; company: string };
+type DealOption = { id: string; title: string };
 
 type Subtask = {
   id: string;
@@ -43,6 +46,7 @@ type Activity = { id: string; text: string; ts: string };
 type Invoice = { id: string; amount: number; status: string; dueDate: string | null };
 type ProjectDetail = ProjectSummary & {
   contactId: string | null;
+  contactEmail: string;
   notes: string;
   contractedValue: number;
   activities: Activity[];
@@ -66,10 +70,12 @@ export function ProjectsGrid({
   initialProjects,
   companyNames = [],
   contacts = [],
+  wonDeals = [],
 }: {
   initialProjects: ProjectSummary[];
   companyNames?: string[];
   contacts?: ContactOption[];
+  wonDeals?: DealOption[];
 }) {
   const [projects, setProjects] = useState(initialProjects);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -178,7 +184,28 @@ export function ProjectsGrid({
                   }}
                 />
               )}
-              <Button onClick={() => setSelectedId(null)}>Close</Button>
+              <div className="flex items-center gap-2">
+                {loadedDetail && (
+                  <>
+                    <AddInvoiceModal
+                      triggerLabel="New invoice"
+                      wonDeals={wonDeals}
+                      companyNames={companyNames}
+                      defaultClient={loadedDetail.client}
+                      defaultDealId={loadedDetail.deal?.id ?? ""}
+                    />
+                    <SendEmailModal
+                      triggerLabel="Send email"
+                      defaultTo={loadedDetail.contactEmail}
+                      defaultSubject=""
+                      defaultMessage=""
+                      contactId={loadedDetail.contactId ?? undefined}
+                      projectId={loadedDetail.id}
+                    />
+                  </>
+                )}
+                <Button onClick={() => setSelectedId(null)}>Close</Button>
+              </div>
             </div>
           }
         >

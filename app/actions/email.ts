@@ -7,9 +7,10 @@ import { prisma } from "@/lib/prisma";
 
 // Sends a one-off email from the CRM (a quick note to a contact/lead, an
 // invoice or quote summary) and, when the send is tied to a Contact/Deal/
-// Invoice, logs it as an activity note so there's a record of the outreach
-// alongside everything else on that record. Leads have no activity feed,
-// so a lead send just isn't logged anywhere beyond Resend's own history.
+// Invoice/Project, logs it as an activity note so there's a record of the
+// outreach alongside everything else on that record. Leads have no
+// activity feed, so a lead send just isn't logged anywhere beyond
+// Resend's own history.
 export async function sendCrmEmail(params: {
   to: string;
   subject: string;
@@ -17,6 +18,7 @@ export async function sendCrmEmail(params: {
   contactId?: string;
   dealId?: string;
   invoiceId?: string;
+  projectId?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   await requireAuth();
   const to = params.to.trim();
@@ -47,6 +49,9 @@ export async function sendCrmEmail(params: {
   }
   if (params.invoiceId) {
     await prisma.activity.create({ data: { invoiceId: params.invoiceId, text: noteText } });
+  }
+  if (params.projectId) {
+    await prisma.activity.create({ data: { projectId: params.projectId, text: noteText } });
   }
 
   return { ok: true };
