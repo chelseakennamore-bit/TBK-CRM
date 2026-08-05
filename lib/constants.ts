@@ -46,6 +46,12 @@ export const INVOICE_STATUSES = ["Draft", "Sent", "Paid", "Overdue"] as const;
 
 export const PROJECT_HEALTH = ["Green", "Yellow", "Red"] as const;
 
+export const MILESTONE_STATUSES = ["Not started", "In progress", "Complete"] as const;
+
+export const RISK_SEVERITIES = ["Low", "Medium", "High"] as const;
+
+export const RISK_STATUSES = ["Open", "Mitigated", "Closed"] as const;
+
 // Which quote layout a deal generates: service (Deliverable/Type/Amount,
 // single Total) or subscription (Item/Seats/Billing/Unit Price/Total,
 // Subtotal + Total).
