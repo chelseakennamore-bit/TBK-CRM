@@ -12,11 +12,18 @@ function getClient(): Resend {
   return client;
 }
 
-// Sends a plain outbound email. Used for one-off sends triggered by a
-// person (quick note to a lead, an invoice/quote summary) -- unlike
+// Sends an outbound email. Used for one-off sends triggered by a person
+// (quick note to a lead, an invoice/quote summary) -- unlike
 // lib/webhooks.ts's fire-and-forget notifyNewLead, this throws on failure
-// so the caller can surface it to whoever clicked "Send".
-export async function sendEmail(params: { to: string; subject: string; text: string }) {
+// so the caller can surface it to whoever clicked "Send". `html` is
+// optional so callers without a rendered template still work with a
+// plain-text-only send.
+export async function sendEmail(params: {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}) {
   const resend = getClient();
   const from = process.env.EMAIL_FROM;
   if (!from) {
@@ -28,6 +35,7 @@ export async function sendEmail(params: { to: string; subject: string; text: str
     to: params.to,
     subject: params.subject,
     text: params.text,
+    ...(params.html ? { html: params.html } : {}),
   });
   if (error) {
     throw new Error(error.message);
